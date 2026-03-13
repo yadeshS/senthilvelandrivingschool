@@ -24,8 +24,10 @@ export default function EditRecordPage() {
     fullName: '', phone: '', dob: '', bloodGroup: '',
     address: '', email: '', vehicleType: '', notes: '',
     totalFee: '', totalSessions: '', completedSessions: '',
+    assignedDriverId: '',
   });
   const [appNumber, setAppNumber] = useState('');
+  const [drivers, setDrivers] = useState<{ id: string; full_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -65,9 +67,13 @@ export default function EditRecordPage() {
           totalFee: data.total_fee != null ? String(data.total_fee) : '',
           totalSessions: data.total_sessions != null ? String(data.total_sessions) : '',
           completedSessions: data.completed_sessions != null ? String(data.completed_sessions) : '',
+          assignedDriverId: data.assigned_driver_id || '',
         });
       }
       setLoading(false);
+    });
+    supabase.from('profiles').select('id, full_name').eq('role', 'driver').order('full_name').then(({ data }) => {
+      setDrivers(data || []);
     });
     loadPayments();
   }, [id]);
@@ -95,6 +101,7 @@ export default function EditRecordPage() {
         total_fee: form.totalFee ? parseFloat(form.totalFee) : 0,
         total_sessions: form.totalSessions ? parseInt(form.totalSessions) : 0,
         completed_sessions: form.completedSessions ? parseInt(form.completedSessions) : 0,
+        assigned_driver_id: form.assignedDriverId || null,
       }).eq('id', id);
       if (updateError) throw updateError;
       setSuccess('Record updated successfully.');
@@ -254,6 +261,13 @@ export default function EditRecordPage() {
                 <div className="form-group">
                   <label>Completed Sessions</label>
                   <input type="number" min="0" value={form.completedSessions} onChange={e => set('completedSessions', e.target.value)} placeholder="e.g. 5" />
+                </div>
+                <div className="form-group">
+                  <label>Assigned Driver</label>
+                  <select value={form.assignedDriverId} onChange={e => set('assignedDriverId', e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
+                    <option value="">— Not assigned —</option>
+                    {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                  </select>
                 </div>
               </div>
             </div>

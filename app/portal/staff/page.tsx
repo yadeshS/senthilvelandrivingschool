@@ -10,6 +10,15 @@ type Booking = {
   profile: { full_name: string; phone: string };
 };
 
+type OwnerStats = {
+  todayRevenue: number;
+  monthRevenue: number;
+  totalRevenue: number;
+  todayNewRecords: number;
+  deskEntries: { id: string; name: string; count: number }[];
+  driverStats: { id: string; name: string; sessions: number; students: number }[];
+};
+
 const STATUS_COLORS: Record<string, string> = {
   pending: '#FF6F00',
   confirmed: '#1565C0',
@@ -17,17 +26,19 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: '#e53935',
 };
 
+const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
 export default function StaffDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [role, setRole] = useState('');
+  const [ownerStats, setOwnerStats] = useState<OwnerStats | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
   const fetchData = async () => {
-    // Today's slot IDs
     const { data: todaySlots } = await supabase.from('slots').select('id').eq('date', today);
     const slotIds = (todaySlots || []).map((s: any) => s.id);
 
@@ -43,21 +54,70 @@ export default function StaffDashboard() {
       setBookings([]);
     }
 
-    // All-time stats
     const { count: total } = await supabase.from('bookings').select('*', { count: 'exact', head: true });
     const { count: pending } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending');
     const { count: confirmed } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed');
     const { count: completed } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'completed');
     setStats({ total: total || 0, pending: pending || 0, confirmed: confirmed || 0, completed: completed || 0 });
-
     setLoading(false);
+  };
+
+  const fetchOwnerStats = async () => {
+    const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+    // Revenue
+    const { data: allPayments } = await supabase.from('payments').select('amount, paid_on');
+    const pmts = allPayments || [];
+    const todayRevenue = pmts.filter(p => p.paid_on === today).reduce((s, p) => s + Number(p.amount), 0);
+    const monthRevenue = pmts.filter(p => p.paid_on >= firstOfMonth).reduce((s, p) => s + Number(p.amount), 0);
+    const totalRevenue = pmts.reduce((s, p) => s + Number(p.amount), 0);
+
+    // Records
+    const { data: recs } = await supabase
+      .from('customer_records')
+      .select('id, created_by, assigned_driver_id, completed_sessions, created_at');
+    const records = recs || [];
+    const todayNewRecords = records.filter(r => r.created_at?.startsWith(today)).length;
+
+    // Team profiles
+    const { data: teamData } = await supabase
+      .from('profiles').select('id, full_name, role').in('role', ['staff', 'driver', 'owner']);
+    const team = teamData || [];
+
+    // Desk entries per staff
+    const staffCountMap: Record<string, number> = {};
+    records.forEach(r => {
+      if (r.created_by) staffCountMap[r.created_by] = (staffCountMap[r.created_by] || 0) + 1;
+    });
+    const deskEntries = team
+      .filter(t => t.role === 'staff' || t.role === 'owner')
+      .map(t => ({ id: t.id, name: t.full_name, count: staffCountMap[t.id] || 0 }))
+      .sort((a, b) => b.count - a.count);
+
+    // Driver sessions + students
+    const driverSessionMap: Record<string, number> = {};
+    const driverStudentMap: Record<string, number> = {};
+    records.forEach(r => {
+      if (r.assigned_driver_id) {
+        driverSessionMap[r.assigned_driver_id] = (driverSessionMap[r.assigned_driver_id] || 0) + (r.completed_sessions || 0);
+        driverStudentMap[r.assigned_driver_id] = (driverStudentMap[r.assigned_driver_id] || 0) + 1;
+      }
+    });
+    const driverStats = team
+      .filter(t => t.role === 'driver')
+      .map(t => ({ id: t.id, name: t.full_name, sessions: driverSessionMap[t.id] || 0, students: driverStudentMap[t.id] || 0 }))
+      .sort((a, b) => b.sessions - a.sessions);
+
+    setOwnerStats({ todayRevenue, monthRevenue, totalRevenue, todayNewRecords, deskEntries, driverStats });
   };
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return;
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-      setRole(profile?.role || '');
+      const userRole = profile?.role || '';
+      setRole(userRole);
+      if (userRole === 'owner') fetchOwnerStats();
     });
     fetchData();
   }, []);
@@ -93,7 +153,7 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Booking Stats */}
       <div className="staff-stats">
         {[
           { label: 'Total Bookings', value: stats.total, color: '#1565C0' },
@@ -107,6 +167,73 @@ export default function StaffDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Owner-only sections */}
+      {role === 'owner' && ownerStats && (
+        <>
+          {/* Revenue Overview */}
+          <section className="portal-section">
+            <h2>💰 Revenue Overview</h2>
+            <div className="staff-stats" style={{ marginTop: 12 }}>
+              {[
+                { label: "Today's Collection", value: fmt(ownerStats.todayRevenue), color: '#2E7D32' },
+                { label: 'This Month', value: fmt(ownerStats.monthRevenue), color: '#1565C0' },
+                { label: 'Total Revenue', value: fmt(ownerStats.totalRevenue), color: '#6A1B9A' },
+                { label: "Today's New Records", value: ownerStats.todayNewRecords, color: '#FF6F00' },
+              ].map(s => (
+                <div key={s.label} className="staff-stat-card">
+                  <div className="staff-stat-value" style={{ color: s.color, fontSize: typeof s.value === 'string' ? 20 : 28 }}>{s.value}</div>
+                  <div className="staff-stat-label">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Desk Staff Activity */}
+          <section className="portal-section">
+            <h2>🏢 Desk Staff — Records Added</h2>
+            {ownerStats.deskEntries.length === 0 ? (
+              <div className="staff-empty">No desk staff found.</div>
+            ) : (
+              <div className="owner-table">
+                <div className="owner-table-head">
+                  <span>Staff Member</span>
+                  <span>Records Added</span>
+                </div>
+                {ownerStats.deskEntries.map(s => (
+                  <div key={s.id} className="owner-table-row">
+                    <span>{s.name}</span>
+                    <span className="owner-table-count">{s.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Driver Performance */}
+          <section className="portal-section">
+            <h2>🚗 Drivers — Training Sessions</h2>
+            {ownerStats.driverStats.length === 0 ? (
+              <div className="staff-empty">No drivers added yet. Add drivers from the Team page.</div>
+            ) : (
+              <div className="owner-table">
+                <div className="owner-table-head">
+                  <span>Driver</span>
+                  <span>Students</span>
+                  <span>Sessions Given</span>
+                </div>
+                {ownerStats.driverStats.map(d => (
+                  <div key={d.id} className="owner-table-row">
+                    <span>{d.name}</span>
+                    <span className="owner-table-count">{d.students}</span>
+                    <span className="owner-table-count" style={{ color: '#2E7D32' }}>{d.sessions}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
 
       {/* Today's Bookings */}
       <section className="portal-section">

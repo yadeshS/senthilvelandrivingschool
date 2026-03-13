@@ -364,6 +364,13 @@ a { text-decoration: none; color: inherit; }
 /* ── Booking Cards ── */
 .portal-section { margin-bottom: 32px; }
 .portal-section h2 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+.owner-table { background: var(--card); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+.owner-table-head { display: grid; grid-template-columns: 1fr repeat(2, 100px); gap: 12px; padding: 10px 16px; background: var(--bg); font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.owner-table-head span:not(:first-child) { text-align: center; }
+.owner-table-row { display: grid; grid-template-columns: 1fr repeat(2, 100px); gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14px; align-items: center; }
+.owner-table-row:hover { background: var(--bg); }
+.owner-table-row span:not(:first-child) { text-align: center; }
+.owner-table-count { font-weight: 700; font-size: 15px; }
 .booking-list { display: flex; flex-direction: column; gap: 12px; }
 .booking-card {
   background: white; border-radius: 14px; padding: 16px 20px;

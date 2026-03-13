@@ -32,6 +32,7 @@ export default function AddRecordPage() {
     setError(''); setLoading(true);
     try {
       const appNumber = await generateAppNumber();
+      const { data: { session } } = await supabase.auth.getSession();
       const { error: insertError } = await supabase.from('customer_records').insert({
         application_number: appNumber,
         full_name: form.fullName.trim(),
@@ -42,6 +43,7 @@ export default function AddRecordPage() {
         email: form.email.trim() || null,
         vehicle_type: form.vehicleType || null,
         notes: form.notes.trim() || null,
+        created_by: session?.user.id || null,
       });
       if (insertError) throw insertError;
       router.push('/portal/staff/records');
