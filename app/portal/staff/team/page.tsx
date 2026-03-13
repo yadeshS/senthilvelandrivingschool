@@ -7,7 +7,6 @@ type Member = {
   id: string;
   full_name: string;
   phone: string;
-  email: string;
   role: string;
   created_at: string;
 };
