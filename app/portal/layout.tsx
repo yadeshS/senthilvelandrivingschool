@@ -19,7 +19,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       setName(profile.full_name || '');
       setRole(profile.role);
       // Route staff to staff section, customers to customer section
-      if (profile.role === 'staff' || profile.role === 'owner') {
+      if (profile.role === 'staff' || profile.role === 'owner' || profile.role === 'driver') {
         if (!pathname.startsWith('/portal/staff')) router.replace('/portal/staff');
       } else if (profile.role === 'customer') {
         if (pathname.startsWith('/portal/staff')) router.replace('/portal');
@@ -41,7 +41,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  const isStaff = role === 'staff' || role === 'owner';
+  const isStaff = role === 'staff' || role === 'owner' || role === 'driver';
+  const isOwner = role === 'owner';
 
   return (
     <>
@@ -56,6 +57,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <a href="/portal/staff/bookings" className={pathname === '/portal/staff/bookings' ? 'active' : ''}>Bookings</a>
             <a href="/portal/staff/records" className={pathname.startsWith('/portal/staff/records') ? 'active' : ''}>Records</a>
             <a href="/portal/staff/customers" className={pathname === '/portal/staff/customers' ? 'active' : ''}>App Users</a>
+            {isOwner && (
+              <a href="/portal/staff/team" className={pathname.startsWith('/portal/staff/team') ? 'active' : ''}>Team</a>
+            )}
           </div>
         )}
         <div className="portal-nav-right">
