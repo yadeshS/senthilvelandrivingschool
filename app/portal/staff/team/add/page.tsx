@@ -48,7 +48,7 @@ export default function AddTeamMemberPage() {
       if (signUpError) throw signUpError;
       if (!data.user) throw new Error('Failed to create account.');
 
-      const { error: profileError } = await supabase.from('profiles').insert({
+      const { error: profileError } = await tempClient.from('profiles').insert({
         id: data.user.id,
         full_name: form.fullName.trim(),
         phone: form.phone.trim() || null,
