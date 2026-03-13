@@ -613,3 +613,68 @@ a { text-decoration: none; color: inherit; }
   background: white; border-radius: 16px; margin-top: 8px;
 }
 .records-hint p { font-size: 15px; line-height: 1.6; }
+
+/* ── Record Edit Layout ── */
+.record-edit-layout {
+  display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: start;
+}
+@media (max-width: 860px) { .record-edit-layout { grid-template-columns: 1fr; } }
+
+/* ── Summary Bar ── */
+.record-summary-bar {
+  display: flex; align-items: center; gap: 0;
+  background: white; border-radius: 14px;
+  border: 2px solid var(--border);
+  padding: 16px 24px; margin-bottom: 24px;
+  flex-wrap: wrap; gap: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.record-summary-bar.has-due {
+  border-color: #F9A825;
+  background: #FFFDE7;
+}
+.summary-item { display: flex; flex-direction: column; gap: 2px; }
+.summary-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; }
+.summary-value { font-size: 17px; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.summary-divider { width: 1px; height: 36px; background: var(--border); margin: 0 4px; }
+.due-amount { color: #E65100; display: flex; align-items: center; gap: 6px; }
+.cleared-amount { color: #2E7D32; display: flex; align-items: center; gap: 6px; }
+.due-badge {
+  background: #FF6F00; color: white;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px;
+}
+.cleared-badge {
+  background: #2E7D32; color: white;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px;
+}
+
+/* ── Payment List ── */
+.payment-list { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
+.payment-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg); border-radius: 10px; margin-bottom: 6px;
+  gap: 12px; flex-wrap: wrap;
+}
+.payment-item-left { display: flex; align-items: center; gap: 10px; }
+.payment-item-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.payment-amount { font-size: 15px; font-weight: 800; color: var(--text); }
+.payment-mode-tag {
+  background: #e8f0fe; color: var(--primary);
+  font-size: 11px; font-weight: 700;
+  padding: 3px 9px; border-radius: 8px;
+}
+.payment-date { font-size: 13px; color: var(--text-secondary); }
+.payment-notes { font-size: 12px; color: var(--text-secondary); font-style: italic; }
+.payment-delete-btn {
+  background: none; border: none; color: #ccc; font-size: 13px;
+  cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color 0.2s;
+}
+.payment-delete-btn:hover { color: #e53935; }
+.payment-total-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; border-top: 2px solid var(--border);
+  font-size: 14px; font-weight: 700; color: var(--text);
+  margin-top: 4px;
+}
