@@ -22,6 +22,7 @@ export default function StaffDashboard() {
   const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [role, setRole] = useState('');
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -52,7 +53,14 @@ export default function StaffDashboard() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return;
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      setRole(profile?.role || '');
+    });
+    fetchData();
+  }, []);
 
   const updateStatus = async (id: string, status: string) => {
     setUpdating(id);
@@ -80,7 +88,7 @@ export default function StaffDashboard() {
     <div className="portal-container">
       <div className="portal-header">
         <div>
-          <h1>Staff Dashboard</h1>
+          <h1>{role === 'owner' ? 'Owner Dashboard' : 'Staff Dashboard'}</h1>
           <p>{todayFormatted}</p>
         </div>
       </div>
