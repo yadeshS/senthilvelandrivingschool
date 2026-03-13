@@ -39,8 +39,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       if (!profile) { await supabase.auth.signOut(); router.replace('/login'); return; }
       setName(profile.full_name || '');
       setRole(profile.role);
-      // Enforce MFA (AAL2) for staff and owner
-      if (profile.role === 'staff' || profile.role === 'owner') {
+      // Enforce MFA (AAL2) for owner only
+      if (profile.role === 'owner') {
         const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         if (aalData?.currentLevel !== 'aal2') {
           const { data: factors } = await supabase.auth.mfa.listFactors();
