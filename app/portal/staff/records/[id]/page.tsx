@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+const DOC_LABELS = ['Aadhaar Card', 'Passport Photo', 'LLR Copy', 'Address Proof', 'Other'];
+
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 const VEHICLE_TYPES = ['Car (LMV)', 'Bike (MCWG)', 'Car + Bike'];
 const PAYMENT_MODES = ['Cash', 'UPI', 'Card', 'Cheque', 'Bank Transfer'];
@@ -61,6 +63,13 @@ export default function EditRecordPage() {
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState('');
 
+  type Document = { id: string; label: string; file_name: string; s3_key: string; file_size: number; created_at: string; };
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [docLabel, setDocLabel] = useState(DOC_LABELS[0]);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
+  const [docError, setDocError] = useState('');
+
   const set = (field: string, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
@@ -69,6 +78,13 @@ export default function EditRecordPage() {
       .from('payments').select('*').eq('record_id', id)
       .order('paid_on', { ascending: false });
     setPayments(data || []);
+  };
+
+  const loadDocuments = async () => {
+    const { data } = await supabase
+      .from('customer_documents').select('*').eq('record_id', id)
+      .order('created_at', { ascending: false });
+    setDocuments(data || []);
   };
 
   useEffect(() => {
@@ -100,6 +116,7 @@ export default function EditRecordPage() {
       setDrivers(data || []);
     });
     loadPayments();
+    loadDocuments();
   }, [id]);
 
   const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -170,6 +187,61 @@ export default function EditRecordPage() {
 
   const formatDate = (d: string) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+  const handleUploadDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docFile) return;
+    setDocLoading(true); setDocError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const fd = new FormData();
+      fd.append('file', docFile);
+      fd.append('record_id', id);
+      fd.append('label', docLabel);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: fd,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setDocFile(null);
+      (document.getElementById('doc-file-input') as HTMLInputElement).value = '';
+      await loadDocuments();
+    } catch (err: any) {
+      setDocError(err.message || 'Upload failed.');
+    } finally {
+      setDocLoading(false);
+    }
+  };
+
+  const handleViewDoc = async (s3_key: string, file_name: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/file-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ s3_key, token: session?.access_token }),
+    });
+    const { url } = await res.json();
+    window.open(url, '_blank');
+  };
+
+  const handleDeleteDoc = async (doc_id: string, s3_key: string) => {
+    if (!confirm('Delete this document? This cannot be undone.')) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    await fetch('/api/delete-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document_id: doc_id, s3_key, token: session?.access_token }),
+    });
+    await loadDocuments();
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const openPaymentReminder = () => {
     const digits = form.phone.replace(/\D/g, '');
@@ -441,6 +513,62 @@ export default function EditRecordPage() {
             </form>
           </div>
         </div>
+
+        {/* Documents Section */}
+          <div className="add-customer-form">
+            <div className="form-section-title" style={{ fontSize: 15, marginBottom: 16 }}>📁 Customer Documents</div>
+
+            {docError && <div className="login-error" style={{ marginBottom: 12 }}>{docError}</div>}
+
+            {/* Uploaded docs list */}
+            {documents.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>No documents uploaded yet.</p>
+            ) : (
+              <div className="doc-list">
+                {documents.map(doc => (
+                  <div key={doc.id} className="doc-item">
+                    <div className="doc-item-left">
+                      <span className="doc-icon">📄</span>
+                      <div>
+                        <div className="doc-label">{doc.label}</div>
+                        <div className="doc-meta">{doc.file_name} · {formatFileSize(doc.file_size)}</div>
+                      </div>
+                    </div>
+                    <div className="doc-item-right">
+                      <button className="portal-outline-btn" style={{ fontSize: 12, padding: '5px 12px' }} onClick={() => handleViewDoc(doc.s3_key, doc.file_name)}>View</button>
+                      <button className="payment-delete-btn" onClick={() => handleDeleteDoc(doc.id, doc.s3_key)} title="Delete">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload form */}
+            <form onSubmit={handleUploadDoc} style={{ marginTop: 16 }}>
+              <div className="form-section-title" style={{ fontSize: 13, marginBottom: 12 }}>Upload Document</div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Document Type</label>
+                  <select value={docLabel} onChange={e => setDocLabel(e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
+                    {DOC_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>File <span className="optional">(PDF, JPG, PNG — max 10MB)</span></label>
+                  <input
+                    id="doc-file-input"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={e => setDocFile(e.target.files?.[0] || null)}
+                    style={{ padding: '8px 0' }}
+                  />
+                </div>
+              </div>
+              <button type="submit" className="portal-book-btn" style={{ padding: '10px 24px' }} disabled={docLoading || !docFile}>
+                {docLoading ? 'Uploading…' : '↑ Upload'}
+              </button>
+            </form>
+          </div>
 
         {/* Right: info card */}
         <div className="tips-card" style={{ height: 'fit-content' }}>

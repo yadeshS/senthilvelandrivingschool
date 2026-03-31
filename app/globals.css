@@ -686,6 +686,19 @@ a { text-decoration: none; color: inherit; }
   margin-top: 4px;
 }
 
+/* ── Document List ── */
+.doc-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.doc-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg); border-radius: 10px;
+  gap: 12px; flex-wrap: wrap;
+}
+.doc-item-left { display: flex; align-items: center; gap: 10px; }
+.doc-item-right { display: flex; align-items: center; gap: 8px; }
+.doc-icon { font-size: 20px; }
+.doc-label { font-size: 14px; font-weight: 700; color: var(--text); }
+.doc-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
 /* ── Forgot Password Link ── */
 .forgot-link {
   background: none; border: none; cursor: pointer;
