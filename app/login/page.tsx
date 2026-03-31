@@ -104,15 +104,6 @@ export default function LoginPage() {
             Sign Up
           </button>
         </div>
-        {tab === 'forgot' && (
-          <button
-            className="login-back"
-            style={{ marginBottom: 8, display: 'inline-block' }}
-            onClick={() => { setTab('login'); setError(''); setSuccess(''); }}
-          >
-            ← Back to Log In
-          </button>
-        )}
 
         {error && <div className="login-error">{error}</div>}
         {success && <div className="login-success">{success}</div>}
@@ -164,6 +155,11 @@ export default function LoginPage() {
             <button type="submit" className="login-submit" disabled={loading}>
               {loading ? 'Sending…' : 'Send Reset Link'}
             </button>
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <button type="button" className="forgot-link" onClick={() => { setTab('login'); setError(''); setSuccess(''); }}>
+                ← Back to Log In
+              </button>
+            </div>
           </form>
         ) : (
           <form onSubmit={handleSignup} className="login-form">
