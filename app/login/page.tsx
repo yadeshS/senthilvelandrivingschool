@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const [tab, setTab] = useState<'login' | 'signup' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -32,6 +32,22 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setSuccess('Password reset link sent! Check your email inbox.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset email.');
     } finally {
       setLoading(false);
     }
@@ -88,6 +104,15 @@ export default function LoginPage() {
             Sign Up
           </button>
         </div>
+        {tab === 'forgot' && (
+          <button
+            className="login-back"
+            style={{ marginBottom: 8, display: 'inline-block' }}
+            onClick={() => { setTab('login'); setError(''); setSuccess(''); }}
+          >
+            ← Back to Log In
+          </button>
+        )}
 
         {error && <div className="login-error">{error}</div>}
         {success && <div className="login-success">{success}</div>}
@@ -112,6 +137,32 @@ export default function LoginPage() {
             </div>
             <button type="submit" className="login-submit" disabled={loading}>
               {loading ? 'Logging in…' : 'Log In'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <button
+                type="button"
+                className="forgot-link"
+                onClick={() => { setTab('forgot'); setError(''); setSuccess(''); }}
+              >
+                Forgot Password?
+              </button>
+            </div>
+          </form>
+        ) : tab === 'forgot' ? (
+          <form onSubmit={handleForgotPassword} className="login-form">
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
+              Enter your email address and we will send you a link to reset your password.
+            </p>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email" required value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="your@email.com"
+              />
+            </div>
+            <button type="submit" className="login-submit" disabled={loading}>
+              {loading ? 'Sending…' : 'Send Reset Link'}
             </button>
           </form>
         ) : (

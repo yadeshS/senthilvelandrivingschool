@@ -686,6 +686,14 @@ a { text-decoration: none; color: inherit; }
   margin-top: 4px;
 }
 
+/* ── Forgot Password Link ── */
+.forgot-link {
+  background: none; border: none; cursor: pointer;
+  color: var(--primary); font-size: 13px; font-weight: 600;
+  text-decoration: underline; padding: 0;
+}
+.forgot-link:hover { color: var(--primary-dark); }
+
 /* ── LLR Eligibility Alert ── */
 .llr-alert {
   padding: 14px 18px; border-radius: 12px; margin-bottom: 20px;
