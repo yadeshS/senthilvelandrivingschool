@@ -20,7 +20,7 @@ export default function Home() {
           <a href={`tel:${phone1}`} className="navbar-phone">
             📞 {phone1}
           </a>
-          <a href="/portal" className="navbar-portal-btn">My Bookings</a>
+          <a href="/login" className="navbar-portal-btn">Login / Sign Up</a>
         </div>
       </nav>
 
@@ -212,12 +212,6 @@ export default function Home() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-              <div className="contact-btns">
-                <a href={`tel:${phone1}`} className="contact-btn-call">📞 Call Now</a>
-                <a href={`https://wa.me/91${phone1}?text=${waMsg}`} className="contact-btn-wa" target="_blank" rel="noopener noreferrer">
-                  💬 WhatsApp
-                </a>
               </div>
             </div>
             <div>

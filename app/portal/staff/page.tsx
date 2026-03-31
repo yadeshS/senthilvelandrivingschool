@@ -10,6 +10,14 @@ type Booking = {
   profile: { full_name: string; phone: string };
 };
 
+type EligibleRecord = {
+  id: string;
+  full_name: string;
+  phone: string;
+  llr_issue_date: string;
+  driving_test_status: string | null;
+};
+
 type OwnerStats = {
   todayRevenue: number;
   monthRevenue: number;
@@ -35,6 +43,7 @@ export default function StaffDashboard() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [role, setRole] = useState('');
   const [ownerStats, setOwnerStats] = useState<OwnerStats | null>(null);
+  const [eligibleRecords, setEligibleRecords] = useState<EligibleRecord[]>([]);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -59,6 +68,22 @@ export default function StaffDashboard() {
     const { count: confirmed } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed');
     const { count: completed } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'completed');
     setStats({ total: total || 0, pending: pending || 0, confirmed: confirmed || 0, completed: completed || 0 });
+
+    // Fetch LLR-eligible records: issued 30–180 days ago, test not yet passed/scheduled
+    const todayDate = new Date();
+    const d30 = new Date(todayDate); d30.setDate(todayDate.getDate() - 30);
+    const d180 = new Date(todayDate); d180.setDate(todayDate.getDate() - 180);
+    const { data: eligible } = await supabase
+      .from('customer_records')
+      .select('id, full_name, phone, llr_issue_date, driving_test_status')
+      .not('llr_issue_date', 'is', null)
+      .lte('llr_issue_date', d30.toISOString().split('T')[0])
+      .gte('llr_issue_date', d180.toISOString().split('T')[0])
+      .is('driving_test_date', null)
+      .neq('driving_test_status', 'passed')
+      .order('llr_issue_date', { ascending: true });
+    setEligibleRecords(eligible || []);
+
     setLoading(false);
   };
 
@@ -233,6 +258,40 @@ export default function StaffDashboard() {
             )}
           </section>
         </>
+      )}
+
+      {/* Test Eligible Customers */}
+      {eligibleRecords.length > 0 && (
+        <section className="portal-section">
+          <h2>🚦 Driving Test Eligible — Call to Schedule ({eligibleRecords.length})</h2>
+          <div className="staff-booking-list" style={{ marginTop: 12 }}>
+            {eligibleRecords.map(r => {
+              const issue = new Date(r.llr_issue_date + 'T00:00:00');
+              const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+              const daysSince = Math.floor((todayD.getTime() - issue.getTime()) / 86400000);
+              const daysLeft = 180 - daysSince;
+              const digits = (r.phone || '').replace(/\D/g, '');
+              const waNumber = digits.length === 10 ? `91${digits}` : digits;
+              const waMsg = `Hello ${r.full_name}, this is Senthil Velan Driving School. Your Learner's Licence is now ${daysSince} days old and you are eligible to take your driving test. Please contact us to schedule your test date. You have ${daysLeft} days remaining.`;
+              return (
+                <div key={r.id} className="staff-booking-card eligible-card">
+                  <div className="staff-booking-info">
+                    <div className="staff-booking-name">{r.full_name}</div>
+                    <div className="staff-booking-meta">
+                      📞 {r.phone || '—'} &nbsp;·&nbsp; LLR: {issue.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} &nbsp;·&nbsp;
+                      <span style={{ color: daysLeft <= 30 ? '#e53935' : '#2E7D32', fontWeight: 700 }}>{daysLeft}d left</span>
+                    </div>
+                  </div>
+                  <div className="staff-booking-actions">
+                    {r.phone && <button className="staff-call-btn" onClick={() => { window.location.href = `tel:${r.phone}`; }}>📞 Call</button>}
+                    {r.phone && <button className="staff-wa-btn" onClick={() => window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(waMsg)}`, '_blank')}>💬 WhatsApp</button>}
+                    <a href={`/portal/staff/records/${r.id}`} className="portal-outline-btn" style={{ fontSize: 13, padding: '6px 14px', textDecoration: 'none' }}>View Record</a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {/* Today's Bookings */}

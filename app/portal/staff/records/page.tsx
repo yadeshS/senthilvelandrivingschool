@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-type Record = {
+type CustomerRecord = {
   id: string;
   application_number: string;
   full_name: string;
@@ -15,13 +15,18 @@ type Record = {
   vehicle_type: string;
   notes: string;
   created_at: string;
+  total_fee: number | null;
+  llr_issue_date: string | null;
+  driving_test_date: string | null;
+  driving_test_status: string | null;
 };
 
 export default function RecordsPage() {
   const router = useRouter();
-  const [records, setRecords] = useState<Record[]>([]);
+  const [records, setRecords] = useState<CustomerRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [paymentMap, setPaymentMap] = useState<Record<string, number>>({});
 
   const [searchName, setSearchName] = useState('');
   const [searchDob, setSearchDob] = useState('');
@@ -43,12 +48,25 @@ export default function RecordsPage() {
 
     const { data } = await q.limit(50);
     setRecords(data || []);
+
+    // fetch payment totals for found records
+    const ids = (data || []).map((r: CustomerRecord) => r.id);
+    if (ids.length > 0) {
+      const { data: pmts } = await supabase.from('payments').select('record_id, amount').in('record_id', ids);
+      const map: Record<string, number> = {};
+      (pmts || []).forEach((p: { record_id: string; amount: number }) => {
+        map[p.record_id] = (map[p.record_id] || 0) + Number(p.amount);
+      });
+      setPaymentMap(map);
+    } else {
+      setPaymentMap({});
+    }
     setLoading(false);
   };
 
   const handleClear = () => {
     setSearchName(''); setSearchDob(''); setSearchApp('');
-    setRecords([]); setSearched(false);
+    setRecords([]); setSearched(false); setPaymentMap({});
   };
 
   const formatDate = (d: string) =>
@@ -56,6 +74,18 @@ export default function RecordsPage() {
 
   const formatDateTime = (d: string) =>
     d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+  const getLLRBadge = (r: CustomerRecord) => {
+    if (!r.llr_issue_date) return null;
+    if (r.driving_test_status === 'passed') return { label: 'Test Passed', cls: 'llr-badge--passed' };
+    if (r.driving_test_date) return { label: `Test on ${formatDate(r.driving_test_date)}`, cls: 'llr-badge--scheduled' };
+    const issue = new Date(r.llr_issue_date + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Math.floor((today.getTime() - issue.getTime()) / 86400000);
+    if (days < 30) return { label: `LLR: eligible in ${30 - days}d`, cls: 'llr-badge--waiting' };
+    if (days <= 180) return { label: `Test Eligible (${180 - days}d left)`, cls: 'llr-badge--eligible' };
+    return { label: 'LLR Expired', cls: 'llr-badge--expired' };
+  };
 
   return (
     <div className="portal-container">
@@ -119,6 +149,16 @@ export default function RecordsPage() {
                       {r.date_of_birth && <span>🎂 {formatDate(r.date_of_birth)}</span>}
                       {r.blood_group && <span className="blood-badge">{r.blood_group}</span>}
                       {r.vehicle_type && <span className="vehicle-badge">{r.vehicle_type}</span>}
+                      {(() => { const b = getLLRBadge(r); return b ? <span className={`llr-badge ${b.cls}`}>{b.label}</span> : null; })()}
+                      {(() => {
+                        const paid = paymentMap[r.id] || 0;
+                        const fee = r.total_fee || 0;
+                        if (!fee) return null;
+                        const bal = fee - paid;
+                        if (bal <= 0) return <span className="pay-badge pay-badge--paid">Paid ✓</span>;
+                        if (paid > 0) return <span className="pay-badge pay-badge--partial">₹{bal.toLocaleString('en-IN')} Due</span>;
+                        return <span className="pay-badge pay-badge--unpaid">₹{fee.toLocaleString('en-IN')} Unpaid</span>;
+                      })()}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

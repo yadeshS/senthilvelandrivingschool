@@ -6,6 +6,25 @@ import { supabase } from '@/lib/supabase';
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 const VEHICLE_TYPES = ['Car (LMV)', 'Bike (MCWG)', 'Car + Bike'];
 const PAYMENT_MODES = ['Cash', 'UPI', 'Card', 'Cheque', 'Bank Transfer'];
+const TEST_STATUSES = [
+  { value: '', label: '— Not set —' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'passed', label: 'Passed' },
+  { value: 'failed', label: 'Failed' },
+];
+
+function getLLRAlert(llrIssueDate: string, testDate: string, testStatus: string) {
+  if (!llrIssueDate) return null;
+  const issue = new Date(llrIssueDate + 'T00:00:00');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysSince = Math.floor((today.getTime() - issue.getTime()) / (1000 * 60 * 60 * 24));
+  if (testStatus === 'passed') return { type: 'passed' as const };
+  if (testDate) return { type: 'scheduled' as const };
+  if (daysSince < 0) return { type: 'invalid' as const };
+  if (daysSince < 30) return { type: 'waiting' as const, daysLeft: 30 - daysSince, daysSince };
+  if (daysSince <= 180) return { type: 'eligible' as const, daysLeft: 180 - daysSince, daysSince };
+  return { type: 'expired' as const, daysSince };
+}
 
 type Payment = {
   id: string;
@@ -25,6 +44,7 @@ export default function EditRecordPage() {
     address: '', email: '', vehicleType: '', notes: '',
     totalFee: '', totalSessions: '', completedSessions: '',
     assignedDriverId: '',
+    llrNumber: '', llrIssueDate: '', testDate: '', testStatus: '',
   });
   const [appNumber, setAppNumber] = useState('');
   const [drivers, setDrivers] = useState<{ id: string; full_name: string }[]>([]);
@@ -68,6 +88,10 @@ export default function EditRecordPage() {
           totalSessions: data.total_sessions != null ? String(data.total_sessions) : '',
           completedSessions: data.completed_sessions != null ? String(data.completed_sessions) : '',
           assignedDriverId: data.assigned_driver_id || '',
+          llrNumber: data.llr_number || '',
+          llrIssueDate: data.llr_issue_date || '',
+          testDate: data.driving_test_date || '',
+          testStatus: data.driving_test_status || '',
         });
       }
       setLoading(false);
@@ -102,6 +126,10 @@ export default function EditRecordPage() {
         total_sessions: form.totalSessions ? parseInt(form.totalSessions) : 0,
         completed_sessions: form.completedSessions ? parseInt(form.completedSessions) : 0,
         assigned_driver_id: form.assignedDriverId || null,
+        llr_number: form.llrNumber.trim() || null,
+        llr_issue_date: form.llrIssueDate || null,
+        driving_test_date: form.testDate || null,
+        driving_test_status: form.testStatus || null,
       }).eq('id', id);
       if (updateError) throw updateError;
       setSuccess('Record updated successfully.');
@@ -142,6 +170,15 @@ export default function EditRecordPage() {
 
   const formatDate = (d: string) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+  const openPaymentReminder = () => {
+    const digits = form.phone.replace(/\D/g, '');
+    const number = digits.length === 10 ? `91${digits}` : digits;
+    const msg = `Hello ${form.fullName}, this is Senthil Velan Driving School. Your pending fee balance is ₹${balance.toLocaleString('en-IN')}. Kindly contact us to clear the dues. Thank you.`;
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const llrAlert = getLLRAlert(form.llrIssueDate, form.testDate, form.testStatus);
 
   if (loading) return <div className="portal-loading">Loading record…</div>;
 
@@ -191,6 +228,18 @@ export default function EditRecordPage() {
           </span>
         </div>
       </div>
+
+      {/* LLR Eligibility Alert */}
+      {llrAlert && (
+        <div className={`llr-alert llr-alert--${llrAlert.type}`}>
+          {llrAlert.type === 'waiting' && <>⏳ LLR issued {llrAlert.daysSince} day{llrAlert.daysSince !== 1 ? 's' : ''} ago — eligible for driving test in <strong>{llrAlert.daysLeft} day{llrAlert.daysLeft !== 1 ? 's' : ''}</strong>.</>}
+          {llrAlert.type === 'eligible' && <>🟢 <strong>Eligible for driving test!</strong> {llrAlert.daysSince} days since LLR — <strong>{llrAlert.daysLeft} day{llrAlert.daysLeft !== 1 ? 's' : ''} remaining</strong>. Call customer to schedule.</>}
+          {llrAlert.type === 'expired' && <>🔴 <strong>LLR Expired</strong> — {llrAlert.daysSince} days since issue. Customer must renew LLR before taking the driving test.</>}
+          {llrAlert.type === 'scheduled' && <>📅 <strong>Driving test scheduled</strong> for {formatDate(form.testDate)}. Remind customer to bring documents.</>}
+          {llrAlert.type === 'passed' && <>✅ <strong>Driving test passed!</strong> Customer has completed the program.</>}
+          {llrAlert.type === 'invalid' && <>⚠️ LLR issue date is set in the future — please verify.</>}
+        </div>
+      )}
 
       <div className="record-edit-layout">
         {/* Left: record form + payment section */}
@@ -273,6 +322,32 @@ export default function EditRecordPage() {
             </div>
 
             <div className="form-section">
+              <div className="form-section-title">Learner's Licence (LLR) & Driving Test</div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>LLR Number <span className="optional">(optional)</span></label>
+                  <input type="text" value={form.llrNumber} onChange={e => set('llrNumber', e.target.value)} placeholder="e.g. TN01 20250001" />
+                </div>
+                <div className="form-group">
+                  <label>LLR Issue Date</label>
+                  <input type="date" value={form.llrIssueDate} onChange={e => set('llrIssueDate', e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Driving Test Date <span className="optional">(scheduled)</span></label>
+                  <input type="date" value={form.testDate} onChange={e => set('testDate', e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>Test Status</label>
+                  <select value={form.testStatus} onChange={e => set('testStatus', e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
+                    {TEST_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-section">
               <div className="form-section-title">Additional Notes</div>
               <div className="form-group">
                 <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} />
@@ -286,7 +361,14 @@ export default function EditRecordPage() {
 
           {/* Payment Section */}
           <div className="add-customer-form">
-            <div className="form-section-title" style={{ fontSize: 15, marginBottom: 16 }}>💳 Payment History</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div className="form-section-title" style={{ fontSize: 15, marginBottom: 0 }}>💳 Payment History</div>
+              {balance > 0 && form.phone && (
+                <button type="button" className="staff-wa-btn" style={{ fontSize: 13 }} onClick={openPaymentReminder}>
+                  💬 Send Payment Reminder
+                </button>
+              )}
+            </div>
 
             {payError && <div className="login-error" style={{ marginBottom: 16 }}>{payError}</div>}
 
@@ -367,8 +449,9 @@ export default function EditRecordPage() {
             <li>Application: <strong>{appNumber}</strong></li>
             <li>Only Full Name is required.</li>
             <li><strong>Balance Due</strong> turns the top bar yellow — collect before training ends.</li>
+            <li>The <strong>💬 Send Payment Reminder</strong> button appears when there is a due balance and phone is set.</li>
+            <li><strong>LLR Issue Date</strong> auto-calculates eligibility — eligible 30 days after issue, valid for 6 months.</li>
             <li>Session count is shared with the driver app.</li>
-            <li>Payment history is saved per entry — delete individual entries if entered by mistake.</li>
           </ul>
         </div>
       </div>
