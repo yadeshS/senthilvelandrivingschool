@@ -97,6 +97,8 @@ export default function AddRecordPage() {
     setForm(prev => ({ ...prev, [field]: value }));
 
   const totalFee = (parseFloat(form.govtFee) || 0) + (parseFloat(form.serviceCharge) || 0);
+  const needsVehicleClass = ['llr_application', 'dl_application', 'licence_renewal'].includes(serviceType);
+  const needsDLNumber = ['licence_renewal', 'address_change', 'endorsement'].includes(serviceType);
 
   const generateAppNumber = async () => {
     const year = new Date().getFullYear();
@@ -107,6 +109,15 @@ export default function AddRecordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.fullName.trim()) { setError('Full name is required.'); return; }
+    if (!form.phone.trim()) { setError('Phone number is required.'); return; }
+    if (!form.dob) { setError('Date of birth is required.'); return; }
+    if (!form.bloodGroup) { setError('Blood group is required.'); return; }
+    if (!form.fathersName.trim()) { setError("Father's / Husband's name is required."); return; }
+    if (!form.address.trim()) { setError('Address is required.'); return; }
+    if (!form.govtFee && !form.serviceCharge) { setError('Please enter at least the Govt Fee or Service Charge.'); return; }
+    if (serviceType === 'llr_application' && !form.llrNumber.trim()) { setError('LLR Number is required.'); return; }
+    if (serviceType === 'llr_application' && !form.llrIssueDate) { setError('LLR Issue Date is required.'); return; }
+    if (needsDLNumber && !form.dlNumber.trim()) { setError('Existing DL Number is required.'); return; }
     setError(''); setLoading(true);
     try {
       const appNumber = await generateAppNumber();
@@ -146,9 +157,6 @@ export default function AddRecordPage() {
       setLoading(false);
     }
   };
-
-  const needsVehicleClass = ['llr_application', 'dl_application', 'licence_renewal'].includes(serviceType);
-  const needsDLNumber = ['licence_renewal', 'address_change', 'endorsement'].includes(serviceType);
 
   return (
     <div className="portal-container">
@@ -211,7 +219,7 @@ export default function AddRecordPage() {
                 <input type="text" required value={form.fullName} onChange={e => set('fullName', e.target.value)} placeholder="e.g. Ravi Kumar" />
               </div>
               <div className="form-group">
-                <label>Phone Number</label>
+                <label>Phone Number <span className="required">*</span></label>
                 <input
                   type="tel" value={form.phone}
                   onChange={e => set('phone', e.target.value)}
@@ -222,17 +230,17 @@ export default function AddRecordPage() {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Father's / Husband's Name</label>
+                <label>Father's / Husband's Name <span className="required">*</span></label>
                 <input type="text" value={form.fathersName} onChange={e => set('fathersName', e.target.value)} placeholder="e.g. Kumar S" />
               </div>
               <div className="form-group">
-                <label>Date of Birth</label>
+                <label>Date of Birth <span className="required">*</span></label>
                 <input type="date" value={form.dob} onChange={e => set('dob', e.target.value)} />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Blood Group</label>
+                <label>Blood Group <span className="required">*</span></label>
                 <select value={form.bloodGroup} onChange={e => set('bloodGroup', e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
                   <option value="">Select</option>
                   {BLOOD_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
@@ -248,7 +256,7 @@ export default function AddRecordPage() {
               </div>
             </div>
             <div className="form-group">
-              <label>Address</label>
+              <label>Address <span className="required">*</span></label>
               <textarea value={form.address} onChange={e => set('address', e.target.value)} placeholder="Door no., Street, Area, City, Pincode" rows={2} />
             </div>
             <div className="form-group">
@@ -312,11 +320,11 @@ export default function AddRecordPage() {
               <>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>LLR Number <span className="optional">(after approval)</span></label>
+                    <label>LLR Number <span className="required">*</span></label>
                     <input type="text" value={form.llrNumber} onChange={e => set('llrNumber', e.target.value)} placeholder="e.g. TN01 20250001" />
                   </div>
                   <div className="form-group">
-                    <label>LLR Issue Date <span className="optional">(starts 30-day timer)</span></label>
+                    <label>LLR Issue Date <span className="required">*</span></label>
                     <input type="date" value={form.llrIssueDate} onChange={e => set('llrIssueDate', e.target.value)} />
                   </div>
                 </div>
@@ -360,11 +368,11 @@ export default function AddRecordPage() {
             <div className="form-section-title">Fee Details</div>
             <div className="form-row">
               <div className="form-group">
-                <label>Govt Fee (₹)</label>
+                <label>Govt Fee (₹) <span className="required">*</span></label>
                 <input type="number" min="0" value={form.govtFee} onChange={e => set('govtFee', e.target.value)} placeholder="Amount paid to govt" />
               </div>
               <div className="form-group">
-                <label>Service Charge (₹)</label>
+                <label>Service Charge (₹) <span className="required">*</span></label>
                 <input type="number" min="0" value={form.serviceCharge} onChange={e => set('serviceCharge', e.target.value)} placeholder="Your service fee" />
               </div>
             </div>
