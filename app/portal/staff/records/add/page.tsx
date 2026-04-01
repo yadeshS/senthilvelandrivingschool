@@ -44,10 +44,45 @@ export default function AddRecordPage() {
     serviceCharge: '',
     notes: '',
   });
+  type PhoneMatch = { full_name: string; application_number: string; service_type: string | null; date_of_birth: string | null; blood_group: string | null; fathers_name: string | null; address: string | null; email: string | null; aadhaar_number: string | null; };
+  const [phoneMatch, setPhoneMatch] = useState<PhoneMatch | null>(null);
   const [drivers, setDrivers] = useState<{ id: string; full_name: string }[]>([]);
   const [driversLoaded, setDriversLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const SERVICE_LABELS: Record<string, string> = {
+    llr_application: 'LLR', dl_application: 'DL', licence_renewal: 'Renewal',
+    address_change: 'Addr. Change', endorsement: 'Endorsement',
+  };
+
+  const checkPhone = async (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10) { setPhoneMatch(null); return; }
+    const { data } = await supabase
+      .from('customer_records')
+      .select('full_name, application_number, service_type, date_of_birth, blood_group, fathers_name, address, email, aadhaar_number')
+      .eq('phone', digits.slice(-10))
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    setPhoneMatch(data ?? null);
+  };
+
+  const applyMatch = () => {
+    if (!phoneMatch) return;
+    setForm(prev => ({
+      ...prev,
+      fullName: phoneMatch.full_name || prev.fullName,
+      dob: phoneMatch.date_of_birth || prev.dob,
+      bloodGroup: phoneMatch.blood_group || prev.bloodGroup,
+      fathersName: phoneMatch.fathers_name || prev.fathersName,
+      address: phoneMatch.address || prev.address,
+      email: phoneMatch.email || prev.email,
+      aadhaarNumber: phoneMatch.aadhaar_number || prev.aadhaarNumber,
+    }));
+    setPhoneMatch(null);
+  };
 
   const loadDrivers = async () => {
     if (driversLoaded) return;
@@ -143,6 +178,26 @@ export default function AddRecordPage() {
             </div>
           </div>
 
+          {/* Returning customer banner */}
+          {phoneMatch && (
+            <div style={{ background: '#E3F2FD', border: '1px solid #90CAF9', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 14 }}>
+                <strong>Returning customer found:</strong> {phoneMatch.full_name}
+                <span style={{ marginLeft: 8, fontSize: 12, color: '#555' }}>
+                  {phoneMatch.application_number} · {SERVICE_LABELS[phoneMatch.service_type || ''] || 'Record'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="portal-book-btn" style={{ fontSize: 13, padding: '6px 14px' }} onClick={applyMatch}>
+                  ✓ Use their details
+                </button>
+                <button type="button" className="portal-outline-btn" style={{ fontSize: 13, padding: '6px 14px' }} onClick={() => setPhoneMatch(null)}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* 2. Customer Details */}
           <div className="form-section">
             <div className="form-section-title">Customer Details</div>
@@ -153,7 +208,12 @@ export default function AddRecordPage() {
               </div>
               <div className="form-group">
                 <label>Phone Number</label>
-                <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="9876543210" />
+                <input
+                  type="tel" value={form.phone}
+                  onChange={e => set('phone', e.target.value)}
+                  onBlur={e => checkPhone(e.target.value)}
+                  placeholder="9876543210"
+                />
               </div>
             </div>
             <div className="form-row">
