@@ -1,14 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-
-const tempClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-);
 
 export default function AddTeamMemberPage() {
   const router = useRouter();
@@ -41,21 +34,21 @@ export default function AddTeamMemberPage() {
 
     setLoading(true);
     try {
-      const { data, error: signUpError } = await tempClient.auth.signUp({
-        email: form.email.trim(),
-        password: form.password.trim(),
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/create-staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: form.fullName.trim(),
+          phone: form.phone.trim() || null,
+          email: form.email.trim(),
+          password: form.password.trim(),
+          role: form.role,
+          token: session?.access_token,
+        }),
       });
-      if (signUpError) throw signUpError;
-      if (!data.user) throw new Error('Failed to create account.');
-
-      const { error: profileError } = await tempClient.from('profiles').insert({
-        id: data.user.id,
-        full_name: form.fullName.trim(),
-        phone: form.phone.trim() || null,
-        role: form.role,
-        is_approved: true,
-      });
-      if (profileError) throw profileError;
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
 
       const roleLabel = form.role === 'driver' ? 'Driver' : form.role === 'owner' ? 'Owner' : 'Staff member';
       setSuccess(`${roleLabel} "${form.fullName.trim()}" added successfully!`);
