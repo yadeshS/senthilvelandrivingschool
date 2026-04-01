@@ -37,6 +37,8 @@ export default function AddRecordPage() {
     includesPractice: false,
     totalSessions: '',
     assignedDriverId: '',
+    llrNumber: '',
+    llrIssueDate: '',
     dlNumber: '',
     licenceExpiryDate: '',
     endorsementClass: '',
@@ -128,6 +130,8 @@ export default function AddRecordPage() {
         govt_fee: parseFloat(form.govtFee) || 0,
         service_charge: parseFloat(form.serviceCharge) || 0,
         total_fee: totalFee,
+        llr_number: form.llrNumber.trim() || null,
+        llr_issue_date: form.llrIssueDate || null,
         dl_number: form.dlNumber.trim() || null,
         licence_expiry_date: form.licenceExpiryDate || null,
         endorsement_class: form.endorsementClass || null,
@@ -293,6 +297,16 @@ export default function AddRecordPage() {
 
             {serviceType === 'llr_application' && (
               <>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>LLR Number <span className="optional">(after approval)</span></label>
+                    <input type="text" value={form.llrNumber} onChange={e => set('llrNumber', e.target.value)} placeholder="e.g. TN01 20250001" />
+                  </div>
+                  <div className="form-group">
+                    <label>LLR Issue Date <span className="optional">(starts 30-day timer)</span></label>
+                    <input type="date" value={form.llrIssueDate} onChange={e => set('llrIssueDate', e.target.value)} />
+                  </div>
+                </div>
                 <div className="form-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                     <input
