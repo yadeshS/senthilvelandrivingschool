@@ -5,14 +5,77 @@ import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [tab, setTab] = useState<'login' | 'otp' | 'signup' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [otpStep, setOtpStep] = useState<'email' | 'code'>('email');
+  const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const switchTab = (t: typeof tab) => {
+    setTab(t); setError(''); setSuccess('');
+    setOtpStep('email'); setOtpCode('');
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
+      setOtpStep('code');
+      setSuccess('OTP sent! Check your email for the 6-digit code.');
+    } catch (err: any) {
+      setError(err.message?.includes('not found') || err.message?.includes('Invalid')
+        ? 'No account found with this email.'
+        : err.message || 'Failed to send OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otpCode.trim(),
+        type: 'email',
+      });
+      if (error) throw error;
+      if (!data.user) throw new Error('Verification failed.');
+
+      const { data: profile } = await supabase
+        .from('profiles').select('role, is_active').eq('id', data.user.id).single();
+
+      if (profile?.is_active === false) {
+        await supabase.auth.signOut();
+        throw new Error('Your account has been disabled. Please contact the administrator.');
+      }
+
+      if (profile?.role === 'staff' || profile?.role === 'owner') {
+        const { data: factorsData } = await supabase.auth.mfa.listFactors();
+        const hasVerifiedTOTP = factorsData?.totp?.some(f => f.status === 'verified');
+        window.location.href = hasVerifiedTOTP ? '/mfa/verify' : '/mfa/setup';
+      } else {
+        router.push('/portal');
+      }
+    } catch (err: any) {
+      setError(err.message?.includes('expired') || err.message?.includes('invalid')
+        ? 'Invalid or expired code. Please try again.'
+        : err.message || 'Verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,16 +170,13 @@ export default function LoginPage() {
         </div>
 
         <div className="login-tabs">
-          <button
-            className={`login-tab ${tab === 'login' ? 'active' : ''}`}
-            onClick={() => { setTab('login'); setError(''); setSuccess(''); }}
-          >
-            Log In
+          <button className={`login-tab ${tab === 'login' ? 'active' : ''}`} onClick={() => switchTab('login')}>
+            Password
           </button>
-          <button
-            className={`login-tab ${tab === 'signup' ? 'active' : ''}`}
-            onClick={() => { setTab('signup'); setError(''); setSuccess(''); }}
-          >
+          <button className={`login-tab ${tab === 'otp' ? 'active' : ''}`} onClick={() => switchTab('otp')}>
+            Email OTP
+          </button>
+          <button className={`login-tab ${tab === 'signup' ? 'active' : ''}`} onClick={() => switchTab('signup')}>
             Sign Up
           </button>
         </div>
@@ -146,15 +206,55 @@ export default function LoginPage() {
               {loading ? 'Logging in…' : 'Log In'}
             </button>
             <div style={{ textAlign: 'center', marginTop: 12 }}>
-              <button
-                type="button"
-                className="forgot-link"
-                onClick={() => { setTab('forgot'); setError(''); setSuccess(''); }}
-              >
+              <button type="button" className="forgot-link" onClick={() => switchTab('forgot')}>
                 Forgot Password?
               </button>
             </div>
           </form>
+        ) : tab === 'otp' ? (
+          otpStep === 'email' ? (
+            <form onSubmit={handleSendOtp} className="login-form">
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                Enter your email and we will send a 6-digit code to log you in.
+              </p>
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email" required value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                />
+              </div>
+              <button type="submit" className="login-submit" disabled={loading}>
+                {loading ? 'Sending…' : 'Send OTP'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="login-form">
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                A 6-digit code was sent to <strong>{email}</strong>.
+              </p>
+              <div className="form-group">
+                <label>Enter OTP Code</label>
+                <input
+                  type="text" required value={otpCode}
+                  onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  maxLength={6}
+                  inputMode="numeric"
+                  style={{ letterSpacing: 8, fontSize: 22, textAlign: 'center' }}
+                />
+              </div>
+              <button type="submit" className="login-submit" disabled={loading || otpCode.length < 6}>
+                {loading ? 'Verifying…' : 'Verify & Log In'}
+              </button>
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <button type="button" className="forgot-link" onClick={() => { setOtpStep('email'); setOtpCode(''); setError(''); setSuccess(''); }}>
+                  ← Use a different email
+                </button>
+              </div>
+            </form>
+          )
         ) : tab === 'forgot' ? (
           <form onSubmit={handleForgotPassword} className="login-form">
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
@@ -172,7 +272,7 @@ export default function LoginPage() {
               {loading ? 'Sending…' : 'Send Reset Link'}
             </button>
             <div style={{ textAlign: 'center', marginTop: 12 }}>
-              <button type="button" className="forgot-link" onClick={() => { setTab('login'); setError(''); setSuccess(''); }}>
+              <button type="button" className="forgot-link" onClick={() => switchTab('login')}>
                 ← Back to Log In
               </button>
             </div>
