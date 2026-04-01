@@ -1,7 +1,15 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+
+const SERVICE_BADGE: Record<string, { label: string; cls: string }> = {
+  llr_application: { label: 'LLR', cls: 'svc-badge--llr' },
+  dl_application:  { label: 'DL', cls: 'svc-badge--dl' },
+  licence_renewal: { label: 'Renewal', cls: 'svc-badge--renewal' },
+  address_change:  { label: 'Addr. Change', cls: 'svc-badge--addr' },
+  endorsement:     { label: 'Endorsement', cls: 'svc-badge--endorse' },
+};
 
 type CustomerRecord = {
   id: string;
@@ -13,6 +21,8 @@ type CustomerRecord = {
   address: string;
   email: string;
   vehicle_type: string;
+  service_type: string | null;
+  service_status: string | null;
   notes: string;
   created_at: string;
   total_fee: number | null;
@@ -145,6 +155,7 @@ export default function RecordsPage() {
                     <div className="record-app-num">{r.application_number}</div>
                     <div className="record-name">{r.full_name}</div>
                     <div className="record-meta">
+                      {(() => { const sb = SERVICE_BADGE[r.service_type || 'llr_application']; return <span className={`svc-badge ${sb.cls}`}>{sb.label}</span>; })()}
                       {r.phone && <span>📞 {r.phone}</span>}
                       {r.date_of_birth && <span>🎂 {formatDate(r.date_of_birth)}</span>}
                       {r.blood_group && <span className="blood-badge">{r.blood_group}</span>}

@@ -3,26 +3,67 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+const VEHICLE_CLASSES = [
+  'LMV-NT (Car)',
+  'MCWG (Bike with Gear)',
+  'MCWOG (Scooty / Scooter)',
+  'LMV-NT + MCWG (Car + Bike)',
+  'HMV (Heavy Vehicle)',
+];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
-const VEHICLE_TYPES = ['Car (LMV)', 'Bike (MCWG)', 'Car + Bike'];
+const ENDORSEMENT_CLASSES = ['LMV-NT', 'MCWG', 'MCWOG', 'LMV', 'HMV', 'HGMV', 'HPMV'];
+
+const SARATHI_SERVICES = [
+  { value: 'llr_application', label: "LLR Application (New Learner's Licence)" },
+  { value: 'dl_application', label: 'DL Application (Permanent Licence)' },
+  { value: 'licence_renewal', label: 'Licence Renewal' },
+  { value: 'address_change', label: 'Change of Address' },
+  { value: 'endorsement', label: 'Additional Endorsement (New Vehicle Class)' },
+];
 
 export default function AddRecordPage() {
   const router = useRouter();
+  const [serviceType, setServiceType] = useState('llr_application');
   const [form, setForm] = useState({
-    fullName: '', phone: '', dob: '', bloodGroup: '',
-    address: '', email: '', vehicleType: '', notes: '',
+    fullName: '',
+    phone: '',
+    dob: '',
+    bloodGroup: '',
+    fathersName: '',
+    address: '',
+    email: '',
+    aadhaarNumber: '',
+    vehicleClass: '',
+    includesPractice: false,
+    totalSessions: '',
+    assignedDriverId: '',
+    dlNumber: '',
+    licenceExpiryDate: '',
+    endorsementClass: '',
+    govtFee: '',
+    serviceCharge: '',
+    notes: '',
   });
+  const [drivers, setDrivers] = useState<{ id: string; full_name: string }[]>([]);
+  const [driversLoaded, setDriversLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const set = (field: string, value: string) =>
+  const loadDrivers = async () => {
+    if (driversLoaded) return;
+    const { data } = await supabase.from('profiles').select('id, full_name').eq('role', 'driver').order('full_name');
+    setDrivers(data || []);
+    setDriversLoaded(true);
+  };
+
+  const set = (field: string, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
+
+  const totalFee = (parseFloat(form.govtFee) || 0) + (parseFloat(form.serviceCharge) || 0);
 
   const generateAppNumber = async () => {
     const year = new Date().getFullYear();
-    const { count } = await supabase
-      .from('customer_records')
-      .select('*', { count: 'exact', head: true });
+    const { count } = await supabase.from('customer_records').select('*', { count: 'exact', head: true });
     return `SV-${year}-${String((count || 0) + 1).padStart(4, '0')}`;
   };
 
@@ -35,31 +76,47 @@ export default function AddRecordPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const { error: insertError } = await supabase.from('customer_records').insert({
         application_number: appNumber,
+        service_type: serviceType,
+        service_status: 'in_progress',
         full_name: form.fullName.trim(),
         phone: form.phone.trim() || null,
         date_of_birth: form.dob || null,
         blood_group: form.bloodGroup || null,
+        fathers_name: form.fathersName.trim() || null,
         address: form.address.trim() || null,
         email: form.email.trim() || null,
-        vehicle_type: form.vehicleType || null,
+        aadhaar_number: form.aadhaarNumber.trim() || null,
+        vehicle_type: form.vehicleClass || null,
+        includes_practice: serviceType === 'llr_application' && form.includesPractice,
+        total_sessions: form.includesPractice && form.totalSessions ? parseInt(form.totalSessions) : 0,
+        completed_sessions: 0,
+        govt_fee: parseFloat(form.govtFee) || 0,
+        service_charge: parseFloat(form.serviceCharge) || 0,
+        total_fee: totalFee,
+        dl_number: form.dlNumber.trim() || null,
+        licence_expiry_date: form.licenceExpiryDate || null,
+        endorsement_class: form.endorsementClass || null,
         notes: form.notes.trim() || null,
         created_by: session?.user.id || null,
       });
       if (insertError) throw insertError;
       router.push('/portal/staff/records');
-    } catch (err: any) {
-      setError(err.message || 'Failed to save record.');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to save record.');
     } finally {
       setLoading(false);
     }
   };
+
+  const needsVehicleClass = ['llr_application', 'dl_application', 'licence_renewal'].includes(serviceType);
+  const needsDLNumber = ['dl_application', 'licence_renewal', 'address_change', 'endorsement'].includes(serviceType);
 
   return (
     <div className="portal-container">
       <div className="portal-header">
         <div>
           <h1>New Customer Record</h1>
-          <p>Enter customer details. Application number is auto-generated.</p>
+          <p>Sarathi Service — application number is auto-generated.</p>
         </div>
         <button className="portal-outline-btn" onClick={() => router.back()}>← Back</button>
       </div>
@@ -68,9 +125,27 @@ export default function AddRecordPage() {
         <form className="add-customer-form" onSubmit={handleSubmit}>
           {error && <div className="login-error" style={{ marginBottom: 20 }}>{error}</div>}
 
-          {/* Personal Info */}
+          {/* 1. Service Type */}
           <div className="form-section">
-            <div className="form-section-title">Personal Information</div>
+            <div className="form-section-title">Service Type</div>
+            <div className="form-group">
+              <label>Sarathi Service <span className="required">*</span></label>
+              <select
+                value={serviceType}
+                onChange={e => setServiceType(e.target.value)}
+                className="staff-status-select"
+                style={{ width: '100%', padding: '10px 14px', fontSize: 15 }}
+              >
+                {SARATHI_SERVICES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 2. Customer Details */}
+          <div className="form-section">
+            <div className="form-section-title">Customer Details</div>
             <div className="form-row">
               <div className="form-group">
                 <label>Full Name <span className="required">*</span></label>
@@ -78,47 +153,146 @@ export default function AddRecordPage() {
               </div>
               <div className="form-group">
                 <label>Phone Number</label>
-                <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="e.g. 9876543210" />
+                <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="9876543210" />
               </div>
             </div>
             <div className="form-row">
+              <div className="form-group">
+                <label>Father's / Husband's Name</label>
+                <input type="text" value={form.fathersName} onChange={e => set('fathersName', e.target.value)} placeholder="e.g. Kumar S" />
+              </div>
               <div className="form-group">
                 <label>Date of Birth</label>
                 <input type="date" value={form.dob} onChange={e => set('dob', e.target.value)} />
               </div>
+            </div>
+            <div className="form-row">
               <div className="form-group">
                 <label>Blood Group</label>
                 <select value={form.bloodGroup} onChange={e => set('bloodGroup', e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
-                  <option value="">Select blood group</option>
+                  <option value="">Select</option>
                   {BLOOD_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
+              </div>
+              <div className="form-group">
+                <label>Aadhaar Number <span className="optional">(optional)</span></label>
+                <input
+                  type="text" value={form.aadhaarNumber}
+                  onChange={e => set('aadhaarNumber', e.target.value.replace(/\D/g, '').slice(0, 12))}
+                  placeholder="12-digit number" maxLength={12} inputMode="numeric"
+                />
               </div>
             </div>
             <div className="form-group">
               <label>Address</label>
-              <textarea value={form.address} onChange={e => set('address', e.target.value)} placeholder="Door no., Street, Area, City, Pincode" rows={3} />
+              <textarea value={form.address} onChange={e => set('address', e.target.value)} placeholder="Door no., Street, Area, City, Pincode" rows={2} />
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Email <span className="optional">(optional)</span></label>
-                <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="customer@email.com" />
-              </div>
-              <div className="form-group">
-                <label>Vehicle Type</label>
-                <select value={form.vehicleType} onChange={e => set('vehicleType', e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
-                  <option value="">Select vehicle type</option>
-                  {VEHICLE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
+            <div className="form-group">
+              <label>Email <span className="optional">(optional)</span></label>
+              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="customer@email.com" />
             </div>
           </div>
 
-          {/* Notes */}
+          {/* 3. Service-Specific Details */}
+          <div className="form-section">
+            <div className="form-section-title">Service Details</div>
+
+            {needsDLNumber && (
+              <div className="form-group">
+                <label>Existing DL Number <span className="required">*</span></label>
+                <input type="text" value={form.dlNumber} onChange={e => set('dlNumber', e.target.value)} placeholder="e.g. TN01 20200001234" />
+              </div>
+            )}
+
+            {needsVehicleClass && (
+              <div className="form-group">
+                <label>Vehicle Class</label>
+                <select value={form.vehicleClass} onChange={e => set('vehicleClass', e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
+                  <option value="">Select vehicle class</option>
+                  {VEHICLE_CLASSES.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+            )}
+
+            {serviceType === 'licence_renewal' && (
+              <div className="form-group">
+                <label>Existing Licence Expiry Date</label>
+                <input type="date" value={form.licenceExpiryDate} onChange={e => set('licenceExpiryDate', e.target.value)} />
+              </div>
+            )}
+
+            {serviceType === 'endorsement' && (
+              <div className="form-group">
+                <label>Endorsement Class to Add <span className="required">*</span></label>
+                <select value={form.endorsementClass} onChange={e => set('endorsementClass', e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
+                  <option value="">Select class to add</option>
+                  {ENDORSEMENT_CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
+
+            {serviceType === 'llr_application' && (
+              <>
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox" checked={form.includesPractice}
+                      onChange={e => { set('includesPractice', e.target.checked); if (e.target.checked) loadDrivers(); }}
+                      style={{ width: 18, height: 18 }}
+                    />
+                    <span>Includes Driving Practice (30-day programme)</span>
+                  </label>
+                </div>
+                {form.includesPractice && (
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Total Practice Sessions</label>
+                      <input type="number" min="1" value={form.totalSessions} onChange={e => set('totalSessions', e.target.value)} placeholder="e.g. 20" />
+                    </div>
+                    <div className="form-group">
+                      <label>Assigned Driver</label>
+                      <select value={form.assignedDriverId} onChange={e => set('assignedDriverId', e.target.value)} className="staff-status-select" style={{ width: '100%', padding: '10px 14px' }}>
+                        <option value="">— Not assigned yet —</option>
+                        {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {serviceType === 'address_change' && (
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>
+                New address will be taken from the Customer Details section above.
+              </p>
+            )}
+          </div>
+
+          {/* 4. Fee Details */}
+          <div className="form-section">
+            <div className="form-section-title">Fee Details</div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Govt Fee (₹)</label>
+                <input type="number" min="0" value={form.govtFee} onChange={e => set('govtFee', e.target.value)} placeholder="Amount paid to govt" />
+              </div>
+              <div className="form-group">
+                <label>Service Charge (₹)</label>
+                <input type="number" min="0" value={form.serviceCharge} onChange={e => set('serviceCharge', e.target.value)} placeholder="Your service fee" />
+              </div>
+            </div>
+            {totalFee > 0 && (
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 16px', fontSize: 14, color: 'var(--text-secondary)' }}>
+                Total charged to customer: <strong style={{ color: 'var(--text-primary)', fontSize: 16 }}>₹{totalFee.toLocaleString('en-IN')}</strong>
+              </div>
+            )}
+          </div>
+
+          {/* 5. Notes */}
           <div className="form-section">
             <div className="form-section-title">Additional Notes</div>
             <div className="form-group">
-              <label>Notes <span className="optional">(optional)</span></label>
-              <textarea value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="e.g. Referred by friend, needs evening slots…" rows={3} />
+              <textarea value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Any special remarks, references, etc." rows={3} />
             </div>
           </div>
 
@@ -128,13 +302,15 @@ export default function AddRecordPage() {
         </form>
 
         <div className="tips-card" style={{ height: 'fit-content' }}>
-          <h3>📋 Fields Guide</h3>
+          <h3>📋 Sarathi Services</h3>
           <ul>
-            <li><strong>Application Number</strong> is auto-generated (e.g. SV-2025-0001). Give it to the customer for reference.</li>
-            <li><strong>Date of Birth</strong> is used for identity verification when searching.</li>
-            <li><strong>Blood Group</strong> is important for emergency contact purposes.</li>
-            <li>To find a record later, search by <strong>name</strong>, <strong>date of birth</strong>, or <strong>application number</strong>.</li>
+            <li><strong>LLR Application</strong> — New learner's licence. Tick "Includes Practice" if the customer wants driving classes from you.</li>
+            <li><strong>DL Application</strong> — Permanent licence after the LLR cooling period.</li>
+            <li><strong>Licence Renewal</strong> — Renew an expired or expiring DL.</li>
+            <li><strong>Change of Address</strong> — Update address on existing DL.</li>
+            <li><strong>Additional Endorsement</strong> — Add a new vehicle class to existing DL (e.g. adding HMV to an LMV licence).</li>
           </ul>
+          <p style={{ marginTop: 12, fontSize: 13, color: 'var(--text-secondary)' }}>Application number is auto-generated (e.g. SV-2026-0001).</p>
         </div>
       </div>
     </div>
