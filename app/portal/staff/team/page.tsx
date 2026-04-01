@@ -40,14 +40,14 @@ export default function TeamPage() {
 
   const loadMembers = async (currentSelfId?: string) => {
     const id = currentSelfId ?? selfId;
-    let query = supabase
-      .from('profiles')
-      .select('id, full_name, phone, email, role, is_active, created_at')
-      .in('role', ['owner', 'staff', 'driver'])
-      .order('created_at', { ascending: false });
-    if (id) query = query.neq('id', id);
-    const { data } = await query;
-    setMembers(data || []);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/team', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: session?.access_token, self_id: id }),
+    });
+    const json = await res.json();
+    setMembers(json.members || []);
     setLoading(false);
   };
 

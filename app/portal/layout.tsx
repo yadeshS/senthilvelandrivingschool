@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-const IDLE_TIMEOUT_STAFF_MS = 10 * 60 * 1000;  // 10 minutes for staff/driver
+const IDLE_TIMEOUT_OWNER_MS    =  5 * 60 * 1000; // 5 minutes for owner
+const IDLE_TIMEOUT_STAFF_MS    = 10 * 60 * 1000; // 10 minutes for staff/driver
 const IDLE_TIMEOUT_CUSTOMER_MS = 30 * 60 * 1000; // 30 minutes for customers
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     if (idleTimer.current) clearTimeout(idleTimer.current);
     const timeout = roleRef.current === 'customer'
       ? IDLE_TIMEOUT_CUSTOMER_MS
-      : IDLE_TIMEOUT_STAFF_MS;
+      : roleRef.current === 'owner'
+        ? IDLE_TIMEOUT_OWNER_MS
+        : IDLE_TIMEOUT_STAFF_MS;
     idleTimer.current = setTimeout(logout, timeout);
   };
 
@@ -33,15 +36,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     events.forEach(e => window.addEventListener(e, resetIdleTimer, { passive: true }));
     resetIdleTimer();
 
-    // Owner: logout immediately when tab is hidden or browser is closed
-    const handleVisibility = () => {
-      if (document.hidden && roleRef.current === 'owner') logout();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
     return () => {
       events.forEach(e => window.removeEventListener(e, resetIdleTimer));
-      document.removeEventListener('visibilitychange', handleVisibility);
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, []);
@@ -66,7 +62,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         }
       }
       // Route to correct section by role
-      if (profile.role === 'staff' || profile.role === 'owner' || profile.role === 'driver') {
+      if (profile.role === 'driver') {
+        if (!pathname.startsWith('/portal/staff')) router.replace('/portal/staff/driver');
+      } else if (profile.role === 'staff' || profile.role === 'owner') {
         if (!pathname.startsWith('/portal/staff')) router.replace('/portal/staff');
       } else if (profile.role === 'customer') {
         if (pathname.startsWith('/portal/staff')) router.replace('/portal');
@@ -90,6 +88,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   const isStaff = role === 'staff' || role === 'owner' || role === 'driver';
   const isOwner = role === 'owner';
+  const isDriver = role === 'driver';
 
   return (
     <>
@@ -100,12 +99,18 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         </a>
         {isStaff && (
           <div className="portal-staff-nav">
-            <a href="/portal/staff" className={pathname === '/portal/staff' ? 'active' : ''}>Dashboard</a>
-            <a href="/portal/staff/bookings" className={pathname === '/portal/staff/bookings' ? 'active' : ''}>Bookings</a>
-            <a href="/portal/staff/records" className={pathname.startsWith('/portal/staff/records') ? 'active' : ''}>Records</a>
-            <a href="/portal/staff/customers" className={pathname === '/portal/staff/customers' ? 'active' : ''}>App Users</a>
-            {isOwner && (
-              <a href="/portal/staff/team" className={pathname.startsWith('/portal/staff/team') ? 'active' : ''}>Team</a>
+            {isDriver ? (
+              <a href="/portal/staff/driver" className={pathname === '/portal/staff/driver' ? 'active' : ''}>My Students</a>
+            ) : (
+              <>
+                <a href="/portal/staff" className={pathname === '/portal/staff' ? 'active' : ''}>Dashboard</a>
+                <a href="/portal/staff/bookings" className={pathname === '/portal/staff/bookings' ? 'active' : ''}>Bookings</a>
+                <a href="/portal/staff/records" className={pathname.startsWith('/portal/staff/records') ? 'active' : ''}>Records</a>
+                <a href="/portal/staff/customers" className={pathname === '/portal/staff/customers' ? 'active' : ''}>App Users</a>
+                {isOwner && (
+                  <a href="/portal/staff/team" className={pathname.startsWith('/portal/staff/team') ? 'active' : ''}>Team</a>
+                )}
+              </>
             )}
           </div>
         )}
