@@ -57,7 +57,8 @@ export default function AddTeamMemberPage() {
       });
       if (profileError) throw profileError;
 
-      setSuccess(`${form.role === 'driver' ? 'Driver' : 'Staff member'} "${form.fullName.trim()}" added successfully!`);
+      const roleLabel = form.role === 'driver' ? 'Driver' : form.role === 'owner' ? 'Owner' : 'Staff member';
+      setSuccess(`${roleLabel} "${form.fullName.trim()}" added successfully!`);
       setForm({ fullName: '', phone: '', email: '', password: '', role: 'staff' });
     } catch (err: any) {
       setError(err.message || 'Failed to add team member.');
@@ -71,7 +72,7 @@ export default function AddTeamMemberPage() {
       <div className="portal-header">
         <div>
           <h1>Add Team Member</h1>
-          <p>Add a new staff member or driver</p>
+          <p>Add a new owner, staff member, or driver</p>
         </div>
         <button className="portal-outline-btn" onClick={() => router.back()}>← Back</button>
       </div>
@@ -93,6 +94,7 @@ export default function AddTeamMemberPage() {
               >
                 <option value="staff">Staff (desk assistant / admin)</option>
                 <option value="driver">Driver (driving instructor)</option>
+                <option value="owner">Owner (full access)</option>
               </select>
             </div>
           </div>
@@ -153,10 +155,10 @@ export default function AddTeamMemberPage() {
         <div className="tips-card" style={{ height: 'fit-content' }}>
           <h3>ℹ️ Roles</h3>
           <ul>
-            <li><strong>Staff</strong> — can access the staff portal: bookings, records, customers.</li>
+            <li><strong>Owner</strong> — full access including team management and revenue overview.</li>
+            <li><strong>Staff</strong> — can access bookings, records, and customers.</li>
             <li><strong>Driver</strong> — same portal access as staff.</li>
             <li>Share the login credentials with the team member so they can log in at this website.</li>
-            <li>Only the <strong>owner</strong> can add or manage team members.</li>
           </ul>
         </div>
       </div>

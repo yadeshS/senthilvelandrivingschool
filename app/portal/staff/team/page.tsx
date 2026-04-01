@@ -16,6 +16,7 @@ type Member = {
 export default function TeamPage() {
   const router = useRouter();
   const [members, setMembers] = useState<Member[]>([]);
+  const [selfId, setSelfId] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -32,16 +33,20 @@ export default function TeamPage() {
         router.replace('/portal/staff');
         return;
       }
-      loadMembers();
+      setSelfId(session.user.id);
+      loadMembers(session.user.id);
     });
   }, [router]);
 
-  const loadMembers = async () => {
-    const { data } = await supabase
+  const loadMembers = async (currentSelfId?: string) => {
+    const id = currentSelfId ?? selfId;
+    let query = supabase
       .from('profiles')
       .select('id, full_name, phone, email, role, is_active, created_at')
-      .in('role', ['staff', 'driver'])
+      .in('role', ['owner', 'staff', 'driver'])
       .order('created_at', { ascending: false });
+    if (id) query = query.neq('id', id);
+    const { data } = await query;
     setMembers(data || []);
     setLoading(false);
   };
@@ -88,8 +93,8 @@ export default function TeamPage() {
     setTimeout(() => setResetSent(null), 4000);
   };
 
-  const roleLabel = (r: string) => r === 'driver' ? '🚗 Driver' : '🏢 Staff';
-  const roleBadgeClass = (r: string) => r === 'driver' ? 'vehicle-badge' : 'blood-badge';
+  const roleLabel = (r: string) => r === 'driver' ? '🚗 Driver' : r === 'owner' ? '👑 Owner' : '🏢 Staff';
+  const roleBadgeClass = (r: string) => r === 'driver' ? 'vehicle-badge' : r === 'owner' ? 'pay-badge--paid' : 'blood-badge';
 
   const formatDate = (d: string) =>
     d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
