@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const IDLE_TIMEOUT_STAFF_MS = 10 * 60 * 1000;  // 10 minutes for staff/driver
+const IDLE_TIMEOUT_CUSTOMER_MS = 30 * 60 * 1000; // 30 minutes for customers
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -12,21 +13,35 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roleRef = useRef('');
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
 
   const resetIdleTimer = () => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
-    idleTimer.current = setTimeout(async () => {
-      await supabase.auth.signOut();
-      window.location.href = '/login';
-    }, IDLE_TIMEOUT_MS);
+    const timeout = roleRef.current === 'customer'
+      ? IDLE_TIMEOUT_CUSTOMER_MS
+      : IDLE_TIMEOUT_STAFF_MS;
+    idleTimer.current = setTimeout(logout, timeout);
   };
 
   useEffect(() => {
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
     events.forEach(e => window.addEventListener(e, resetIdleTimer, { passive: true }));
     resetIdleTimer();
+
+    // Owner: logout immediately when tab is hidden or browser is closed
+    const handleVisibility = () => {
+      if (document.hidden && roleRef.current === 'owner') logout();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, []);
@@ -39,6 +54,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       if (!profile) { await supabase.auth.signOut(); router.replace('/login'); return; }
       setName(profile.full_name || '');
       setRole(profile.role);
+      roleRef.current = profile.role;
       // Enforce MFA (AAL2) for staff, driver, and owner
       if (profile.role === 'staff' || profile.role === 'driver' || profile.role === 'owner') {
         const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
