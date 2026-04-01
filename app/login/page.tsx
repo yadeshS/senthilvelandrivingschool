@@ -21,7 +21,14 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', data.user.id).single();
+        .from('profiles').select('role, is_active').eq('id', data.user.id).single();
+
+      // Block disabled accounts immediately after login
+      if (profile?.is_active === false) {
+        await supabase.auth.signOut();
+        throw new Error('Your account has been disabled. Please contact the administrator.');
+      }
+
       if (profile?.role === 'staff' || profile?.role === 'owner') {
         // Staff/owner must go through MFA
         const { data: factorsData } = await supabase.auth.mfa.listFactors();

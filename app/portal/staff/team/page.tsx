@@ -20,6 +20,8 @@ export default function TeamPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -52,6 +54,27 @@ export default function TeamPage() {
       .eq('id', member.id);
     await loadMembers();
     setActionLoading(null);
+  };
+
+  const handleDelete = async (member: Member) => {
+    setActionLoading(member.id); setDeleteError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/delete-staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_id: member.id, token: session?.access_token }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setDeleteConfirm(null);
+      setExpanded(null);
+      await loadMembers();
+    } catch (err: any) {
+      setDeleteError(err.message || 'Delete failed.');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const sendPasswordReset = async (member: Member) => {
@@ -122,7 +145,7 @@ export default function TeamPage() {
                     <div><span>Status</span><p>{m.is_active === false ? 'Disabled' : 'Active'}</p></div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                     {/* Toggle Access */}
                     <button
                       className={m.is_active === false ? 'portal-book-btn' : 'portal-outline-btn'}
@@ -144,7 +167,40 @@ export default function TeamPage() {
                         {resetSent === m.id ? '✓ Reset Email Sent' : '🔑 Send Password Reset'}
                       </button>
                     )}
+
+                    {/* Delete permanently */}
+                    {deleteConfirm !== m.id ? (
+                      <button
+                        className="portal-outline-btn"
+                        style={{ fontSize: 13, color: '#e53935', borderColor: '#e53935' }}
+                        onClick={() => { setDeleteConfirm(m.id); setDeleteError(''); }}
+                      >
+                        🗑 Delete Permanently
+                      </button>
+                    ) : (
+                      <div className="team-delete-confirm">
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#B71C1C' }}>
+                          Delete {m.full_name}? This cannot be undone.
+                        </span>
+                        <button
+                          className="portal-book-btn"
+                          style={{ fontSize: 13, background: '#e53935' }}
+                          disabled={actionLoading === m.id}
+                          onClick={() => handleDelete(m)}
+                        >
+                          {actionLoading === m.id ? 'Deleting…' : 'Yes, Delete'}
+                        </button>
+                        <button
+                          className="portal-outline-btn"
+                          style={{ fontSize: 13 }}
+                          onClick={() => setDeleteConfirm(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
+                  {deleteError && <div className="login-error" style={{ marginTop: 10 }}>{deleteError}</div>}
                 </div>
               )}
             </div>
