@@ -148,7 +148,7 @@ export default function AddRecordPage() {
   };
 
   const needsVehicleClass = ['llr_application', 'dl_application', 'licence_renewal'].includes(serviceType);
-  const needsDLNumber = ['dl_application', 'licence_renewal', 'address_change', 'endorsement'].includes(serviceType);
+  const needsDLNumber = ['licence_renewal', 'address_change', 'endorsement'].includes(serviceType);
 
   return (
     <div className="portal-container">
@@ -275,6 +275,19 @@ export default function AddRecordPage() {
                   <option value="">Select vehicle class</option>
                   {VEHICLE_CLASSES.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
+              </div>
+            )}
+
+            {serviceType === 'dl_application' && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>LLR Number (Reference)</label>
+                  <input type="text" value={form.llrNumber} onChange={e => set('llrNumber', e.target.value)} placeholder="e.g. TN01 20250001" />
+                </div>
+                <div className="form-group">
+                  <label>Govt Application / DL Number</label>
+                  <input type="text" value={form.dlNumber} onChange={e => set('dlNumber', e.target.value)} placeholder="App ref no. → update to DL no. once issued" />
+                </div>
               </div>
             )}
 

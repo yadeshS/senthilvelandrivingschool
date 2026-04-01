@@ -287,7 +287,7 @@ export default function EditRecordPage() {
   const llrAlert = getLLRAlert(form.llrIssueDate, form.testDate, form.testStatus);
   const statusInfo = SERVICE_STATUSES.find(s => s.value === serviceStatus);
   const needsVehicleClass = ['llr_application', 'dl_application', 'licence_renewal'].includes(serviceType);
-  const needsDLNumber = ['dl_application', 'licence_renewal', 'address_change', 'endorsement'].includes(serviceType);
+  const needsDLNumber = ['licence_renewal', 'address_change', 'endorsement'].includes(serviceType);
 
   if (loading) return <div className="portal-loading">Loading record…</div>;
 
@@ -516,8 +516,8 @@ export default function EditRecordPage() {
                     <input type="text" value={form.llrNumber} onChange={e => set('llrNumber', e.target.value)} placeholder="e.g. TN01 20250001" />
                   </div>
                   <div className="form-group">
-                    <label>DL Number <span className="optional">(after issue)</span></label>
-                    <input type="text" value={form.dlNumber} onChange={e => set('dlNumber', e.target.value)} placeholder="e.g. TN01 20250001234" />
+                    <label>Govt Application / DL Number</label>
+                    <input type="text" value={form.dlNumber} onChange={e => set('dlNumber', e.target.value)} placeholder="App ref no. → update to DL no. once issued" />
                   </div>
                 </div>
               )}
