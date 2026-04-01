@@ -63,7 +63,7 @@ export default function EditRecordPage() {
     fullName: '', phone: '', dob: '', bloodGroup: '',
     fathersName: '', address: '', email: '', aadhaarNumber: '',
     vehicleType: '', notes: '',
-    govtFee: '', serviceCharge: '',
+    totalFee: '', govtFee: '',
     totalSessions: '', completedSessions: '',
     includesPractice: false,
     assignedDriverId: '',
@@ -117,8 +117,8 @@ export default function EditRecordPage() {
           aadhaarNumber: data.aadhaar_number || '',
           vehicleType: data.vehicle_type || '',
           notes: data.notes || '',
+          totalFee: data.total_fee != null && data.total_fee > 0 ? String(data.total_fee) : '',
           govtFee: data.govt_fee != null && data.govt_fee > 0 ? String(data.govt_fee) : '',
-          serviceCharge: data.service_charge != null && data.service_charge > 0 ? String(data.service_charge) : '',
           totalSessions: data.total_sessions != null ? String(data.total_sessions) : '',
           completedSessions: data.completed_sessions != null ? String(data.completed_sessions) : '',
           includesPractice: data.includes_practice || (data.total_sessions > 0) || false,
@@ -141,9 +141,9 @@ export default function EditRecordPage() {
     loadDocuments();
   }, [id]);
 
-  const govtFeeNum = parseFloat(form.govtFee) || 0;
-  const serviceChargeNum = parseFloat(form.serviceCharge) || 0;
-  const totalFeeNum = govtFeeNum + serviceChargeNum;
+  const totalFeeNum    = parseFloat(form.totalFee) || 0;
+  const govtFeeNum     = parseFloat(form.govtFee)  || 0;
+  const serviceChargeNum = Math.max(0, totalFeeNum - govtFeeNum);
   const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const balance = totalFeeNum - totalPaid;
   const totalSessNum = parseInt(form.totalSessions) || 0;
@@ -308,8 +308,8 @@ export default function EditRecordPage() {
           <span className="summary-value">₹{govtFeeNum.toLocaleString('en-IN')}</span>
         </div>
         <div className="summary-item">
-          <span className="summary-label">Service Charge</span>
-          <span className="summary-value">₹{serviceChargeNum.toLocaleString('en-IN')}</span>
+          <span className="summary-label">Your Profit</span>
+          <span className="summary-value" style={{ color: '#2E7D32' }}>₹{serviceChargeNum.toLocaleString('en-IN')}</span>
         </div>
         <div className="summary-item">
           <span className="summary-label">Total Fee</span>
@@ -566,17 +566,19 @@ export default function EditRecordPage() {
               <div className="form-section-title">Fee Details</div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Govt Fee (₹)</label>
-                  <input type="number" min="0" value={form.govtFee} onChange={e => set('govtFee', e.target.value)} placeholder="Amount paid to govt" />
+                  <label>Total Fee charged to Customer (₹)</label>
+                  <input type="number" min="0" value={form.totalFee} onChange={e => set('totalFee', e.target.value)} placeholder="Total amount customer pays" />
                 </div>
                 <div className="form-group">
-                  <label>Service Charge (₹)</label>
-                  <input type="number" min="0" value={form.serviceCharge} onChange={e => set('serviceCharge', e.target.value)} placeholder="Your service fee" />
+                  <label>Govt Fee (₹)</label>
+                  <input type="number" min="0" value={form.govtFee} onChange={e => set('govtFee', e.target.value)} placeholder="Amount paid to government" />
                 </div>
               </div>
               {totalFeeNum > 0 && (
-                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 16px', fontSize: 14, color: 'var(--text-secondary)' }}>
-                  Total charged to customer: <strong style={{ color: 'var(--text-primary)', fontSize: 16 }}>₹{totalFeeNum.toLocaleString('en-IN')}</strong>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 16px', fontSize: 14, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                  <span>Total: <strong style={{ color: 'var(--text-primary)' }}>₹{totalFeeNum.toLocaleString('en-IN')}</strong></span>
+                  <span>Govt: <strong style={{ color: '#1565C0' }}>₹{govtFeeNum.toLocaleString('en-IN')}</strong></span>
+                  <span>Your profit: <strong style={{ color: '#2E7D32' }}>₹{serviceChargeNum.toLocaleString('en-IN')}</strong></span>
                 </div>
               )}
             </div>

@@ -42,8 +42,8 @@ export default function AddRecordPage() {
     dlNumber: '',
     licenceExpiryDate: '',
     endorsementClass: '',
+    totalFee: '',
     govtFee: '',
-    serviceCharge: '',
     notes: '',
   });
   type PhoneMatch = { full_name: string; application_number: string; service_type: string | null; date_of_birth: string | null; blood_group: string | null; fathers_name: string | null; address: string | null; email: string | null; aadhaar_number: string | null; };
@@ -96,7 +96,9 @@ export default function AddRecordPage() {
   const set = (field: string, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
-  const totalFee = (parseFloat(form.govtFee) || 0) + (parseFloat(form.serviceCharge) || 0);
+  const totalFeeNum = parseFloat(form.totalFee) || 0;
+  const govtFeeNum  = parseFloat(form.govtFee)  || 0;
+  const serviceCharge = Math.max(0, totalFeeNum - govtFeeNum);
   const needsVehicleClass = ['llr_application', 'dl_application', 'licence_renewal'].includes(serviceType);
   const needsDLNumber = ['licence_renewal', 'address_change', 'endorsement'].includes(serviceType);
 
@@ -114,7 +116,7 @@ export default function AddRecordPage() {
     if (!form.bloodGroup) { setError('Blood group is required.'); return; }
     if (!form.fathersName.trim()) { setError("Father's / Husband's name is required."); return; }
     if (!form.address.trim()) { setError('Address is required.'); return; }
-    if (!form.govtFee && !form.serviceCharge) { setError('Please enter at least the Govt Fee or Service Charge.'); return; }
+    if (!form.totalFee) { setError('Total fee is required.'); return; }
     if (serviceType === 'llr_application' && !form.llrNumber.trim()) { setError('LLR Number is required.'); return; }
     if (serviceType === 'llr_application' && !form.llrIssueDate) { setError('LLR Issue Date is required.'); return; }
     if (needsDLNumber && !form.dlNumber.trim()) { setError('Existing DL Number is required.'); return; }
@@ -138,9 +140,9 @@ export default function AddRecordPage() {
         includes_practice: serviceType === 'llr_application' && form.includesPractice,
         total_sessions: form.includesPractice && form.totalSessions ? parseInt(form.totalSessions) : 0,
         completed_sessions: 0,
-        govt_fee: parseFloat(form.govtFee) || 0,
-        service_charge: parseFloat(form.serviceCharge) || 0,
-        total_fee: totalFee,
+        govt_fee: govtFeeNum,
+        service_charge: serviceCharge,
+        total_fee: totalFeeNum,
         llr_number: form.llrNumber.trim() || null,
         llr_issue_date: form.llrIssueDate || null,
         dl_number: form.dlNumber.trim() || null,
@@ -368,17 +370,19 @@ export default function AddRecordPage() {
             <div className="form-section-title">Fee Details</div>
             <div className="form-row">
               <div className="form-group">
-                <label>Govt Fee (₹) <span className="required">*</span></label>
-                <input type="number" min="0" value={form.govtFee} onChange={e => set('govtFee', e.target.value)} placeholder="Amount paid to govt" />
+                <label>Total Fee charged to Customer (₹) <span className="required">*</span></label>
+                <input type="number" min="0" value={form.totalFee} onChange={e => set('totalFee', e.target.value)} placeholder="Total amount customer pays" />
               </div>
               <div className="form-group">
-                <label>Service Charge (₹) <span className="required">*</span></label>
-                <input type="number" min="0" value={form.serviceCharge} onChange={e => set('serviceCharge', e.target.value)} placeholder="Your service fee" />
+                <label>Govt Fee (₹) <span className="required">*</span></label>
+                <input type="number" min="0" value={form.govtFee} onChange={e => set('govtFee', e.target.value)} placeholder="Amount paid to government" />
               </div>
             </div>
-            {totalFee > 0 && (
-              <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 16px', fontSize: 14, color: 'var(--text-secondary)' }}>
-                Total charged to customer: <strong style={{ color: 'var(--text-primary)', fontSize: 16 }}>₹{totalFee.toLocaleString('en-IN')}</strong>
+            {totalFeeNum > 0 && (
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 16px', fontSize: 14, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                <span>Total: <strong style={{ color: 'var(--text-primary)' }}>₹{totalFeeNum.toLocaleString('en-IN')}</strong></span>
+                <span>Govt: <strong style={{ color: '#1565C0' }}>₹{govtFeeNum.toLocaleString('en-IN')}</strong></span>
+                <span>Your profit: <strong style={{ color: '#2E7D32' }}>₹{serviceCharge.toLocaleString('en-IN')}</strong></span>
               </div>
             )}
           </div>
