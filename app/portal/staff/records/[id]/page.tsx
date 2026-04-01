@@ -29,7 +29,7 @@ const SERVICE_STATUSES = [
 ];
 const SARATHI_SERVICES = [
   { value: 'llr_application', label: "LLR Application" },
-  { value: 'dl_application', label: 'DL Application' },
+  { value: 'dl_application', label: 'DL Test Application' },
   { value: 'licence_renewal', label: 'Licence Renewal' },
   { value: 'address_change', label: 'Change of Address' },
   { value: 'endorsement', label: 'Additional Endorsement' },

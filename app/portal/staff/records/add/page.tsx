@@ -15,7 +15,7 @@ const ENDORSEMENT_CLASSES = ['LMV-NT', 'MCWG', 'MCWOG', 'LMV', 'HMV', 'HGMV', 'H
 
 const SARATHI_SERVICES = [
   { value: 'llr_application', label: "LLR Application (New Learner's Licence)" },
-  { value: 'dl_application', label: 'DL Application (Permanent Licence)' },
+  { value: 'dl_application', label: 'DL Test Application' },
   { value: 'licence_renewal', label: 'Licence Renewal' },
   { value: 'address_change', label: 'Change of Address' },
   { value: 'endorsement', label: 'Additional Endorsement (New Vehicle Class)' },
@@ -379,7 +379,7 @@ export default function AddRecordPage() {
           <h3>📋 Sarathi Services</h3>
           <ul>
             <li><strong>LLR Application</strong> — New learner's licence. Tick "Includes Practice" if the customer wants driving classes from you.</li>
-            <li><strong>DL Application</strong> — Permanent licence after the LLR cooling period.</li>
+            <li><strong>DL Test Application</strong> — Permanent licence after the LLR cooling period.</li>
             <li><strong>Licence Renewal</strong> — Renew an expired or expiring DL.</li>
             <li><strong>Change of Address</strong> — Update address on existing DL.</li>
             <li><strong>Additional Endorsement</strong> — Add a new vehicle class to existing DL (e.g. adding HMV to an LMV licence).</li>
