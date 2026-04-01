@@ -41,6 +41,15 @@ export default function LoginPage() {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
+      // Check if email exists in profiles table before sending reset link
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email.trim().toLowerCase())
+        .single();
+      if (profileError || !profile) {
+        throw new Error('No account found with this email address.');
+      }
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });

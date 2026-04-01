@@ -686,6 +686,14 @@ a { text-decoration: none; color: inherit; }
   margin-top: 4px;
 }
 
+/* ── Team Management ── */
+.team-card--disabled { opacity: 0.6; border-left: 3px solid #e53935; }
+.team-disabled-badge {
+  background: #FFEBEE; color: #B71C1C;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 8px;
+}
+
 /* ── Document List ── */
 .doc-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
 .doc-item {
