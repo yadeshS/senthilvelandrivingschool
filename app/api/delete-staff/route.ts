@@ -8,27 +8,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    // Verify the caller is the owner
-    const callerClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    const { data: { user }, error: authError } = await callerClient.auth.getUser(token);
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const { data: callerProfile } = await callerClient
-      .from('profiles').select('role').eq('id', user.id).single();
-    if (callerProfile?.role !== 'owner') {
-      return NextResponse.json({ error: 'Only the owner can delete staff.' }, { status: 403 });
-    }
-
-    // Use service role to permanently delete from Supabase Auth
+    // Use service role for all operations to bypass RLS
     const adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // Verify the caller is the owner
+    const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const { data: callerProfile } = await adminClient
+      .from('profiles').select('role').eq('id', user.id).single();
+    if (callerProfile?.role !== 'owner') {
+      return NextResponse.json({ error: 'Only the owner can delete staff.' }, { status: 403 });
+    }
 
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(staff_id);
     if (deleteError) throw deleteError;
