@@ -1,3 +1,46 @@
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import SpiderWebCanvas from '@/components/SpiderWebCanvas';
+
+function useCountUp(target: number, duration = 1800, start = false) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    let startTime: number | null = null;
+    const step = (ts: number) => {
+      if (!startTime) startTime = ts;
+      const progress = Math.min((ts - startTime) / duration, 1);
+      setCount(Math.floor(progress * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [start, target, duration]);
+  return count;
+}
+
+function StatCounter({ value, label, suffix = '' }: { value: number; label: string; suffix?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [started, setStarted] = useState(false);
+  const count = useCountUp(value, 1800, started);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setStarted(true); obs.disconnect(); }
+    }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div className="hero-stat" ref={ref}>
+      <div className="hero-stat-num">{count}{suffix}</div>
+      <div className="hero-stat-label">{label}</div>
+    </div>
+  );
+}
+
 export default function Home() {
   const phone1 = '9489860333';
   const phone2 = '9842160333';
@@ -5,9 +48,33 @@ export default function Home() {
   const address = 'Shop No-1, SPT MANINAGAR, Ashok Nagar, Cuddalore, Vadakuthu, Tamil Nadu 607308';
   const mapQuery = encodeURIComponent('Senthil Velan Driving School, SPT MANINAGAR, Ashok Nagar, Cuddalore, Tamil Nadu 607308');
 
+  const [stickyVisible, setStickyVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setStickyVisible(window.scrollY > 520);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <>
-      {/* Navbar */}
+      {/* ── Sticky Call Bar ── */}
+      <div className={`sticky-call-bar${stickyVisible ? ' sticky-call-bar--visible' : ''}`}>
+        <span className="sticky-call-label">Call Us:</span>
+        <a href={`tel:${phone1}`} className="sticky-call-btn">📞 {phone1}</a>
+        <a href={`tel:${phone2}`} className="sticky-call-btn">📞 {phone2}</a>
+        <a
+          href={`https://wa.me/91${phone1}?text=${waMsg}`}
+          className="sticky-wa-btn"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          💬 WhatsApp
+        </a>
+        <a href="/login" className="sticky-portal-btn">Portal →</a>
+      </div>
+
+      {/* ── Navbar ── */}
       <nav className="navbar">
         <div className="navbar-brand">
           <div className="navbar-logo">SV</div>
@@ -16,47 +83,82 @@ export default function Home() {
             <div className="navbar-subtitle">Cuddalore, Tamil Nadu</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <a href={`tel:${phone1}`} className="navbar-phone">
-            📞 {phone1}
-          </a>
+        <div className="navbar-right">
+          <a href={`tel:${phone1}`} className="navbar-phone">📞 {phone1}</a>
           <a href="/login" className="navbar-portal-btn">Login / Sign Up</a>
         </div>
       </nav>
 
-      {/* Hero */}
+      {/* ── Hero ── */}
       <section className="hero" id="home">
+        <SpiderWebCanvas />
         <div className="hero-content">
           <div className="hero-badge">🚗 Cuddalore's Trusted Driving School</div>
           <h1>Learn to Drive with <span>Confidence</span></h1>
           <p>
-            Professional driving training in Cuddalore since years. Expert instructors,
+            Professional driving training in Cuddalore. Expert instructors,
             flexible timings, and complete support from LLR to Permanent License.
           </p>
           <div className="hero-btns">
             <a href={`tel:${phone1}`} className="btn-primary">📞 Call to Enroll</a>
-            <a href={`https://wa.me/91${phone1}?text=${waMsg}`} className="btn-wa" target="_blank" rel="noopener noreferrer">
+            <a
+              href={`https://wa.me/91${phone1}?text=${waMsg}`}
+              className="btn-wa"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               💬 WhatsApp Us
             </a>
           </div>
           <div className="hero-stats">
+            <StatCounter value={500} suffix="+" label="Students Trained" />
+            <StatCounter value={98} suffix="%" label="Pass Rate" />
             <div className="hero-stat">
-              <div className="hero-stat-num">500+</div>
-              <div className="hero-stat-label">Students Trained</div>
-            </div>
-            <div className="hero-stat">
-              <div className="hero-stat-num">98%</div>
-              <div className="hero-stat-label">Pass Rate</div>
-            </div>
-            <div className="hero-stat">
-              <div className="hero-stat-num">Mon–Sat</div>
+              <div className="hero-stat-num" style={{ fontSize: 24 }}>Mon–Sat</div>
               <div className="hero-stat-label">8 AM – 6 PM</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Services */}
+      {/* ── Quick Contact Strip ── */}
+      <div className="quick-strip">
+        <a href={`tel:${phone1}`} className="quick-strip-item">
+          <span className="quick-strip-icon">📞</span>
+          <div>
+            <div className="quick-strip-label">Primary</div>
+            <div className="quick-strip-val">+91 {phone1}</div>
+          </div>
+        </a>
+        <a href={`tel:${phone2}`} className="quick-strip-item">
+          <span className="quick-strip-icon">📞</span>
+          <div>
+            <div className="quick-strip-label">Alternate</div>
+            <div className="quick-strip-val">+91 {phone2}</div>
+          </div>
+        </a>
+        <a
+          href={`https://wa.me/91${phone1}?text=${waMsg}`}
+          className="quick-strip-item quick-strip-item--wa"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span className="quick-strip-icon">💬</span>
+          <div>
+            <div className="quick-strip-label">WhatsApp</div>
+            <div className="quick-strip-val">Chat with us</div>
+          </div>
+        </a>
+        <a href="/login" className="quick-strip-item quick-strip-item--portal">
+          <span className="quick-strip-icon">👤</span>
+          <div>
+            <div className="quick-strip-label">Already enrolled?</div>
+            <div className="quick-strip-val">Track Progress →</div>
+          </div>
+        </a>
+      </div>
+
+      {/* ── Services ── */}
       <section className="section" id="services">
         <div className="container">
           <div className="section-title">
@@ -83,8 +185,8 @@ export default function Home() {
             </div>
             <div className="service-card">
               <div className="service-icon">🏆</div>
-              <h3>Driving Test Prep</h3>
-              <p>Focused training sessions to prepare you specifically for the RTO driving test. High pass rate.</p>
+              <h3>DL Test Preparation</h3>
+              <p>Focused training sessions to prepare you for the RTO driving test. High pass rate guaranteed.</p>
             </div>
             <div className="service-card">
               <div className="service-icon">📄</div>
@@ -93,14 +195,14 @@ export default function Home() {
             </div>
             <div className="service-card">
               <div className="service-icon">🔄</div>
-              <h3>License Renewal & Transfer</h3>
-              <p>Assistance with license renewal, name/address transfer, and other RTO documentation.</p>
+              <h3>Renewal & Address Change</h3>
+              <p>Assistance with license renewal, address change, endorsement, and other RTO documentation.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How it Works */}
+      {/* ── How it Works ── */}
       <section className="section section-alt" id="process">
         <div className="container">
           <div className="section-title">
@@ -127,14 +229,34 @@ export default function Home() {
             <div className="step">
               <div className="step-num">4</div>
               <h4>License</h4>
-              <p>Pass the test & get your license</p>
+              <p>Pass the DL test & get your license</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Why Choose Us */}
-      <section className="section" id="about">
+      {/* ── Student Portal CTA ── */}
+      <section className="section portal-cta-section">
+        <div className="container">
+          <div className="portal-cta-card">
+            <div className="portal-cta-icon">📱</div>
+            <div className="portal-cta-text">
+              <h2>Already Enrolled? Track Your Progress</h2>
+              <p>
+                Log in to the student portal to view your session schedule, driving progress,
+                payment status, and upcoming test reminders — all in one place.
+              </p>
+              <div className="portal-cta-btns">
+                <a href="/login" className="btn-primary" style={{ fontSize: 15 }}>Login to Portal</a>
+                <a href="/login" className="btn-signup">New? Sign Up Free</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Why Choose Us ── */}
+      <section className="section section-alt" id="about">
         <div className="container">
           <div className="section-title">
             <h2>Why Choose Us?</h2>
@@ -164,20 +286,20 @@ export default function Home() {
             </div>
             <div className="why-card">
               <div className="icon">📱</div>
-              <h3>Easy Booking</h3>
-              <p>Book lessons via phone or WhatsApp. Track your progress through our mobile app.</p>
+              <h3>Digital Tracking</h3>
+              <p>Track your sessions, payments, and test dates through our online portal — anytime, anywhere.</p>
             </div>
             <div className="why-card">
               <div className="icon">💰</div>
               <h3>Affordable Fees</h3>
-              <p>Transparent pricing with no hidden charges. Installment payment options available.</p>
+              <p>Transparent pricing with no hidden charges. Flexible payment options available.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Contact */}
-      <section className="section section-alt" id="contact">
+      {/* ── Contact ── */}
+      <section className="section" id="contact">
         <div className="container">
           <div className="section-title">
             <h2>Visit Us</h2>
@@ -200,6 +322,17 @@ export default function Home() {
                   <p><a href={`tel:${phone1}`}>+91 {phone1}</a></p>
                   <p><a href={`tel:${phone2}`}>+91 {phone2}</a></p>
                 </div>
+              </div>
+              <div className="contact-btns">
+                <a href={`tel:${phone1}`} className="contact-btn-call">📞 Call Now</a>
+                <a
+                  href={`https://wa.me/91${phone1}?text=${waMsg}`}
+                  className="contact-btn-wa"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  💬 WhatsApp
+                </a>
               </div>
               <div className="contact-card">
                 <div className="contact-card-icon">🕐</div>
@@ -228,7 +361,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* ── Footer ── */}
       <footer className="footer">
         <div className="container">
           <div className="footer-grid">
@@ -246,8 +379,8 @@ export default function Home() {
                 <li><a href="#services">Car Driving (LMV)</a></li>
                 <li><a href="#services">Two-Wheeler Training</a></li>
                 <li><a href="#services">LLR Application</a></li>
-                <li><a href="#services">Driving Test Prep</a></li>
-                <li><a href="#services">Permanent License</a></li>
+                <li><a href="#services">DL Test Preparation</a></li>
+                <li><a href="#services">License Renewal</a></li>
               </ul>
             </div>
             <div>
@@ -267,7 +400,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Floating WhatsApp */}
+      {/* ── Floating WhatsApp ── */}
       <a
         href={`https://wa.me/91${phone1}?text=${waMsg}`}
         className="wa-float"
