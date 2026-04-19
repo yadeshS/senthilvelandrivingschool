@@ -651,6 +651,31 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ── Customer Records ── */
+.records-filter-bar {
+  background: white; border-radius: 16px; padding: 20px 24px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06); margin-bottom: 8px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.records-filter-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.records-filter-label {
+  font-size: 12px; font-weight: 700; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.5px; min-width: 56px;
+}
+.records-filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-pill {
+  font-size: 13px; font-weight: 500; padding: 5px 14px;
+  border-radius: 20px; border: 1.5px solid var(--border);
+  background: white; color: var(--text-secondary); cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-pill:hover { border-color: var(--primary); color: var(--primary); }
+.filter-pill--active {
+  background: var(--primary); border-color: var(--primary);
+  color: white; font-weight: 700;
+}
+
 .records-search-card {
   background: white; border-radius: 16px; padding: 28px;
   box-shadow: 0 2px 16px rgba(0,0,0,0.06); margin-bottom: 8px;
