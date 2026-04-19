@@ -148,6 +148,7 @@ export default function AddRecordPage() {
         dl_number: form.dlNumber.trim() || null,
         licence_expiry_date: form.licenceExpiryDate || null,
         endorsement_class: form.endorsementClass || null,
+        assigned_driver_id: form.includesPractice && form.assignedDriverId ? form.assignedDriverId : null,
         notes: form.notes.trim() || null,
         created_by: session?.user.id || null,
       });
